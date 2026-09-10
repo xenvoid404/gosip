@@ -1,6 +1,7 @@
 package gosip
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,6 +33,24 @@ func TestContextStatus(t *testing.T) {
 	c.Status(StatusCreated).String("hidup joko")
 	if rec.Code != StatusCreated {
 		t.Fatalf("status = %d, harusnya: %d", rec.Code, StatusCreated)
+	}
+}
+
+func TestContextJSON(t *testing.T) {
+	c, rec := newTestContext(http.MethodGet, "/")
+
+	c.Status(StatusOK).JSON(Map{"kasih": "pahambos"})
+
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, harusnya: %q", ct, "application/json")
+	}
+
+	var got map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("gagal decode body: %v", err)
+	}
+	if got["kasih"] != "pahambos" {
+		t.Fatalf("body = %v, harusnya kasih=pahambos", got)
 	}
 }
 
