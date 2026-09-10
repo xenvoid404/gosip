@@ -20,8 +20,8 @@ const (
 	defaultShutdownTimeout   = 10 * time.Second
 )
 
-type HandlerFunc func(*Context)
-type ErrorHandlerFunc func([]error, *Context)
+type HandlerFunc func(*Context) error
+type ErrorHandlerFunc func(error, *Context) error
 
 type Router struct {
 	mux              *http.ServeMux
@@ -31,13 +31,11 @@ type Router struct {
 	notFound         HandlerFunc
 	methodNotAllowed HandlerFunc
 	errorHandler     ErrorHandlerFunc
-	methods          map[string]struct{}
 }
 
 func New() *Router {
 	r := &Router{
-		mux:     http.NewServeMux(),
-		methods: make(map[string]struct{}),
+		mux: http.NewServeMux(),
 	}
 	r.root = r
 	r.notFound = defaultNotFound
@@ -55,8 +53,7 @@ func New() *Router {
 			handlers:       []HandlerFunc{fallback},
 			index:          -1,
 		}
-		c.Next()
-		r.handleErrors(c)
+		r.dispatch(c)
 	})
 
 	return r
@@ -68,14 +65,10 @@ func (r *Router) Use(middleware ...HandlerFunc) {
 
 func (r *Router) Group(prefix string) *Router {
 	return &Router{
-		mux:              r.mux,
-		middlewares:      append([]HandlerFunc{}, r.middlewares...),
-		prefix:           joinPaths(r.prefix, prefix),
-		root:             r.root,
-		notFound:         r.root.notFound,
-		methodNotAllowed: r.root.methodNotAllowed,
-		errorHandler:     r.root.errorHandler,
-		methods:          r.root.methods,
+		mux:         r.mux,
+		middlewares: append([]HandlerFunc{}, r.middlewares...),
+		prefix:      joinPaths(r.prefix, prefix),
+		root:        r.root,
 	}
 }
 
@@ -115,8 +108,6 @@ func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) {
 	all = append(all, r.middlewares...)
 	all = append(all, handlers...)
 
-	r.root.methods[method] = struct{}{}
-
 	r.mux.HandleFunc(fullPattern, func(w http.ResponseWriter, req *http.Request) {
 		c := &Context{
 			ResponseWriter: w,
@@ -124,45 +115,45 @@ func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) {
 			handlers:       all,
 			index:          -1,
 		}
-		c.Next()
-		r.handleErrors(c)
+		r.dispatch(c)
 	})
 }
 
+var allMethods = []string{
+	http.MethodGet, http.MethodPost, http.MethodPut,
+	http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodHead,
+}
+
 func (r *Router) isMethodNotAllowed(req *http.Request) bool {
-	if len(r.root.methods) == 0 {
-		return false
-	}
-
 	originalMethod := req.Method
-	defer func() {
-		req.Method = originalMethod
-	}()
+	defer func() { req.Method = originalMethod }()
 
-	for method := range r.root.methods {
+	for _, method := range allMethods {
 		if method == originalMethod {
 			continue
 		}
 		req.Method = method
 		_, pattern := r.root.mux.Handler(req)
-		if pattern != "/" {
+		if pattern != "/" && pattern != "" {
 			return true
 		}
 	}
-
 	return false
 }
 
-func (r *Router) handleErrors(c *Context) {
-	if len(c.errors) == 0 {
-		return
+func (r *Router) dispatch(c *Context) {
+	if err := c.Next(); err != nil {
+		r.handleError(err, c)
 	}
-	if !c.wroteHeader {
-		r.root.errorHandler(c.errors, c)
-		return
-	}
-	for _, err := range c.errors {
+}
+
+func (r *Router) handleError(err error, c *Context) {
+	if c.wroteHeader {
 		log.Printf("gosip: error setelah response dikirim: %v", err)
+		return
+	}
+	if herr := r.root.errorHandler(err, c); herr != nil {
+		log.Printf("gosip: error handler gagal: %v", herr)
 	}
 }
 
@@ -220,14 +211,15 @@ func joinPaths(prefix, path string) string {
 	return strings.TrimRight(prefix, "/") + "/" + strings.TrimLeft(path, "/")
 }
 
-func defaultNotFound(c *Context) {
-	c.Status(StatusNotFound).String("404 Not Found")
+func defaultNotFound(c *Context) error {
+	return c.Status(StatusNotFound).String("404 Not Found")
 }
 
-func defaultMethodNotAllowed(c *Context) {
-	c.Status(StatusMethodNotAllowed).String("405 Method Not Allowed")
+func defaultMethodNotAllowed(c *Context) error {
+	return c.Status(StatusMethodNotAllowed).String("405 Method Not Allowed")
 }
 
-func defaultErrorHandler(errs []error, c *Context) {
-	c.Status(StatusInternalServerError).String(errs[0].Error())
+func defaultErrorHandler(err error, c *Context) error {
+	log.Printf("gosip: error yang tidak tertangani %v", err)
+	return c.Status(StatusInternalServerError).String("500 Internal Server Error")
 }

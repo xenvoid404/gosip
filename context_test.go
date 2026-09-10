@@ -16,7 +16,7 @@ func newTestContext(method, target string) (*Context, *httptest.ResponseRecorder
 
 func TestContextStatusDefault(t *testing.T) {
 	c, rec := newTestContext(http.MethodGet, "/")
-	c.String("hidup joko")
+	_ = c.String("hidup joko")
 
 	if rec.Code != StatusOK {
 		t.Fatalf("status = %d, harusnya: %d", rec.Code, StatusOK)
@@ -31,7 +31,7 @@ func TestContextStatusDefault(t *testing.T) {
 
 func TestContextStatus(t *testing.T) {
 	c, rec := newTestContext(http.MethodGet, "/")
-	c.Status(StatusCreated).String("hidup joko")
+	_ = c.Status(StatusCreated).String("hidup joko")
 	if rec.Code != StatusCreated {
 		t.Fatalf("status = %d, harusnya: %d", rec.Code, StatusCreated)
 	}
@@ -40,7 +40,7 @@ func TestContextStatus(t *testing.T) {
 func TestContextJSON(t *testing.T) {
 	c, rec := newTestContext(http.MethodGet, "/")
 
-	c.Status(StatusOK).JSON(Map{"kasih": "pahambos"})
+	_ = c.Status(StatusOK).JSON(map[string]string{"kasih": "pahambos"})
 
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Fatalf("Content-Type = %q, harusnya: %q", ct, "application/json")
@@ -58,33 +58,14 @@ func TestContextJSON(t *testing.T) {
 func TestContextWriteHeader(t *testing.T) {
 	c, rec := newTestContext(http.MethodGet, "/")
 
-	c.Status(StatusOK).String("kesatu")
-	c.Status(StatusInternalServerError).String("kedua")
+	_ = c.Status(StatusOK).String("kesatu")
+	_ = c.Status(StatusInternalServerError).String("kedua")
 
 	if rec.Code != StatusOK {
 		t.Fatalf("status = %d, harusnya: %d (status kedua harusnya dicuekin)", rec.Code, StatusOK)
 	}
 	if rec.Body.String() != "kesatukedua" {
 		t.Fatalf("body = %q, harusnya: %q", rec.Body.String(), "kesatukedua")
-	}
-}
-
-func TestContextError(t *testing.T) {
-	c, rec := newTestContext(http.MethodGet, "/")
-
-	err1 := errors.New("e1")
-	err2 := errors.New("e2")
-	c.Error(err1)
-	c.Error(err2)
-
-	if len(c.errors) != 2 || c.errors[0] != err1 || c.errors[1] != err2 {
-		t.Fatalf("error = %v, harusnya [%v, %v]", c.errors, err1, err2)
-	}
-	if c.wroteHeader {
-		t.Fatal("harusnya ngga nulis header response")
-	}
-	if rec.Body.Len() != 0 {
-		t.Fatalf("harusnya ngga nulis body, body = %q", rec.Body.String())
 	}
 }
 
@@ -110,12 +91,12 @@ func TestContextParams(t *testing.T) {
 func TestContextNextRun(t *testing.T) {
 	var order []int
 	handlers := []HandlerFunc{
-		func(c *Context) { order = append(order, 1); c.Next() },
-		func(c *Context) { order = append(order, 2); c.Next() },
-		func(c *Context) { order = append(order, 3) },
+		func(c *Context) error { order = append(order, 1); return c.Next() },
+		func(c *Context) error { order = append(order, 2); return c.Next() },
+		func(c *Context) error { order = append(order, 3); return nil },
 	}
 	c := &Context{handlers: handlers, index: -1}
-	c.Next()
+	_ = c.Next()
 
 	want := []int{1, 2, 3}
 	if len(order) != len(want) {
@@ -131,14 +112,27 @@ func TestContextNextRun(t *testing.T) {
 func TestContextNextNothing(t *testing.T) {
 	called := 0
 	handlers := []HandlerFunc{
-		func(c *Context) { called++ },
+		func(c *Context) error { called++; return nil },
 	}
 	c := &Context{handlers: handlers, index: -1}
 
-	c.Next()
-	c.Next() // pemanggilan ekstra ngga boleh jalanin handler lagi
+	_ = c.Next()
+	_ = c.Next() // pemanggilan ekstra ngga boleh jalanin handler lagi
 
 	if called != 1 {
 		t.Fatalf("handler dipanggil %d kali, harusnya 1", called)
+	}
+}
+
+func TestContextNextPropagatesError(t *testing.T) {
+	wantErr := errors.New("boom")
+	handlers := []HandlerFunc{
+		func(c *Context) error { return c.Next() },
+		func(c *Context) error { return wantErr },
+	}
+	c := &Context{handlers: handlers, index: -1}
+
+	if err := c.Next(); !errors.Is(err, wantErr) {
+		t.Fatalf("err = %v, harusnya %v", err, wantErr)
 	}
 }

@@ -20,10 +20,9 @@ func doRequest(r *Router, method, target string) *httptest.ResponseRecorder {
 
 func TestRouterBasic(t *testing.T) {
 	r := New()
-	r.Get("/mbg", func(c *Context) { c.String("mantap") })
+	r.Get("/mbg", func(c *Context) error { return c.String("mantap") })
 
 	rec := doRequest(r, http.MethodGet, "/mbg")
-
 	if rec.Code != StatusOK || rec.Body.String() != "mantap" {
 		t.Fatalf("status = %d, body = %q", rec.Code, rec.Body.String())
 	}
@@ -31,10 +30,9 @@ func TestRouterBasic(t *testing.T) {
 
 func TestRouterUnregisterPath(t *testing.T) {
 	r := New()
-	r.Get("/mbg", func(c *Context) { c.String("mantap") })
+	r.Get("/mbg", func(c *Context) error { return c.String("mantap") })
 
 	rec := doRequest(r, http.MethodGet, "/carmen")
-
 	if rec.Code != StatusNotFound {
 		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusNotFound)
 	}
@@ -42,10 +40,19 @@ func TestRouterUnregisterPath(t *testing.T) {
 
 func TestRouterWrongMethod(t *testing.T) {
 	r := New()
-	r.Get("/mbg", func(c *Context) { c.String("mantap") })
+	r.Get("/mbg", func(c *Context) error { return c.String("mantap") })
 
 	rec := doRequest(r, http.MethodPost, "/mbg")
+	if rec.Code != StatusMethodNotAllowed {
+		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusMethodNotAllowed)
+	}
+}
 
+func TestRouterWrongMethodWithParam(t *testing.T) {
+	r := New()
+	r.Get("/users/{id}", func(c *Context) error { return c.String("ok") })
+
+	rec := doRequest(r, http.MethodPost, "/users/123")
 	if rec.Code != StatusMethodNotAllowed {
 		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusMethodNotAllowed)
 	}
@@ -55,9 +62,12 @@ func TestRouterChaining(t *testing.T) {
 	r := New()
 
 	var order []string
-	r.Use(func(c *Context) { order = append(order, "mw1"); c.Next() })
-	r.Use(func(c *Context) { order = append(order, "mw2"); c.Next() })
-	r.Get("/carmen", func(c *Context) { order = append(order, "handler"); c.String("ok") })
+	r.Use(func(c *Context) error { order = append(order, "mw1"); return c.Next() })
+	r.Use(func(c *Context) error { order = append(order, "mw2"); return c.Next() })
+	r.Get("/carmen", func(c *Context) error {
+		order = append(order, "handler")
+		return c.String("ok")
+	})
 
 	rec := doRequest(r, http.MethodGet, "/carmen")
 	if rec.Body.String() != "ok" {
@@ -78,11 +88,15 @@ func TestRouterChaining(t *testing.T) {
 func TestRouterSkipNext(t *testing.T) {
 	r := New()
 	handlerCalled := false
-	r.Use(func(c *Context) { c.Status(StatusForbidden).String("blocked") }) // ekspektasi ngga memanggil Next()
-	r.Get("/carmen", func(c *Context) { handlerCalled = true; c.String("ok") })
+	r.Use(func(c *Context) error {
+		return c.Status(StatusForbidden).String("blocked")
+	})
+	r.Get("/carmen", func(c *Context) error {
+		handlerCalled = true
+		return c.String("ok")
+	})
 
 	rec := doRequest(r, http.MethodGet, "/carmen")
-
 	if handlerCalled {
 		t.Fatal("handler seharusnya tidak dipanggil karena middleware tidak memanggil Next()")
 	}
@@ -95,11 +109,14 @@ func TestRouterGroupInherit(t *testing.T) {
 	r := New()
 
 	var order []string
-	r.Use(func(c *Context) { order = append(order, "root-mw"); c.Next() })
+	r.Use(func(c *Context) error { order = append(order, "root-mw"); return c.Next() })
 
 	api := r.Group("/api")
-	api.Use(func(c *Context) { order = append(order, "api-mw"); c.Next() })
-	api.Get("/ping", func(c *Context) { order = append(order, "handler"); c.String("pong") })
+	api.Use(func(c *Context) error { order = append(order, "api-mw"); return c.Next() })
+	api.Get("/ping", func(c *Context) error {
+		order = append(order, "handler")
+		return c.String("pong")
+	})
 
 	rec := doRequest(r, http.MethodGet, "/api/ping")
 	if rec.Body.String() != "pong" {
@@ -117,15 +134,15 @@ func TestRouterGroupInherit(t *testing.T) {
 	}
 }
 
-// Tes middleware yang didaftarkan di router utama setelah sebuah grup dibuat
-// tidak boleh terpakai oleh routing grup yang sudah ada
+// Middleware yang didaftarkan di router utama setelah sebuah grup dibuat
+// tidak boleh terpakai oleh routing grup yang sudah ada.
 func TestRouterGroupNotInherit(t *testing.T) {
 	r := New()
 	g1 := r.Group("/g1")
-	g1.Get("/carmen", func(c *Context) { c.String("g1 handler") })
+	g1.Get("/carmen", func(c *Context) error { return c.String("g1 handler") })
 
 	// Middleware ini didaftarkan setelah g1 dibuat.
-	r.Use(func(c *Context) { c.Status(StatusTeapot).String("from root mw") })
+	r.Use(func(c *Context) error { return c.Status(StatusTeapot).String("from root mw") })
 
 	rec := doRequest(r, http.MethodGet, "/g1/carmen")
 	if rec.Code != StatusOK || rec.Body.String() != "g1 handler" {
@@ -134,19 +151,18 @@ func TestRouterGroupNotInherit(t *testing.T) {
 	}
 }
 
-// Middleware yang didaftarkan ke dalam sebuah grup, tidak
-// boleh bocor ke group lain ataupun ke router utama
+// Middleware yang didaftarkan ke dalam sebuah grup tidak boleh bocor
+// ke grup lain ataupun ke router utama.
 func TestRouterGroupNotLeak(t *testing.T) {
 	r := New()
 	g1 := r.Group("/g1")
 	g2 := r.Group("/g2")
 
-	g1.Use(func(c *Context) { c.Status(StatusTeapot).String("from g1 mw") })
-	g1.Get("/carmen", func(c *Context) { c.String("g1 handler") })
-	g2.Get("/carmen", func(c *Context) { c.String("g2 handler") })
+	g1.Use(func(c *Context) error { return c.Status(StatusTeapot).String("from g1 mw") })
+	g1.Get("/carmen", func(c *Context) error { return c.String("g1 handler") })
+	g2.Get("/carmen", func(c *Context) error { return c.String("g2 handler") })
 
 	recG2 := doRequest(r, http.MethodGet, "/g2/carmen")
-
 	if recG2.Code != StatusOK || recG2.Body.String() != "g2 handler" {
 		t.Fatalf("g2 status=%d body=%q, harusnya status=200 body=%q (middleware g1 tidak boleh memengaruhi g2)",
 			recG2.Code, recG2.Body.String(), "g2 handler")
@@ -155,26 +171,41 @@ func TestRouterGroupNotLeak(t *testing.T) {
 
 func TestRouterNotFound(t *testing.T) {
 	r := New()
-	r.notFound = func(c *Context) { c.Status(StatusTeapot).String("kustom 404") }
+	r.notFound = func(c *Context) error {
+		return c.Status(StatusTeapot).String("kustom 404")
+	}
 
 	rec := doRequest(r, http.MethodGet, "/ghost")
-
 	if rec.Code != StatusTeapot || rec.Body.String() != "kustom 404" {
+		t.Fatalf("status=%d body=%q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRouterMethodNotAllowedCustom(t *testing.T) {
+	r := New()
+	r.Get("/mbg", func(c *Context) error { return c.String("mantap") })
+	r.methodNotAllowed = func(c *Context) error {
+		return c.Status(StatusTeapot).String("kustom 405")
+	}
+
+	rec := doRequest(r, http.MethodPost, "/mbg")
+	if rec.Code != StatusTeapot || rec.Body.String() != "kustom 405" {
 		t.Fatalf("status=%d body=%q", rec.Code, rec.Body.String())
 	}
 }
 
 func TestRouterErrorHandler(t *testing.T) {
 	r := New()
-	r.Get("/boom", func(c *Context) { c.Error(errors.New("boom")) })
+	r.Get("/boom", func(c *Context) error {
+		return errors.New("boom")
+	})
 
 	rec := doRequest(r, http.MethodGet, "/boom")
-
 	if rec.Code != StatusInternalServerError {
 		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusInternalServerError)
 	}
-	if rec.Body.String() != "boom" {
-		t.Fatalf("body = %q, harusnya %q", rec.Body.String(), "boom")
+	if rec.Body.String() != "500 Internal Server Error" {
+		t.Fatalf("body = %q, harusnya %q", rec.Body.String(), "500 Internal Server Error")
 	}
 }
 
@@ -184,13 +215,12 @@ func TestRouterErrorAfterHeaderSent(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	r := New()
-	r.Get("/late", func(c *Context) {
-		c.String("ok") // header + body sudah terkirim di sini
-		c.Error(errors.New("terlambat"))
+	r.Get("/late", func(c *Context) error {
+		_ = c.String("ok") // header + body sudah terkirim di sini
+		return errors.New("terlambat")
 	})
 
 	rec := doRequest(r, http.MethodGet, "/late")
-
 	if rec.Code != StatusOK || rec.Body.String() != "ok" {
 		t.Fatalf("response ke klien seharusnya tidak berubah, status=%d body=%q", rec.Code, rec.Body.String())
 	}

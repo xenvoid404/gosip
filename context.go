@@ -12,14 +12,14 @@ type Context struct {
 	index          int
 	statusCode     int
 	wroteHeader    bool
-	errors         []error
 }
 
-func (c *Context) Next() {
+func (c *Context) Next() error {
 	c.index++
 	if c.index < len(c.handlers) {
-		c.handlers[c.index](c)
+		return c.handlers[c.index](c)
 	}
+	return nil
 }
 
 func (c *Context) Status(code int) *Context {
@@ -27,26 +27,17 @@ func (c *Context) Status(code int) *Context {
 	return c
 }
 
-func (c *Context) JSON(data any) *Context {
+func (c *Context) JSON(data any) error {
 	c.ResponseWriter.Header().Set("Content-Type", "application/json")
 	c.writeHeader()
-	if err := json.NewEncoder(c.ResponseWriter).Encode(data); err != nil {
-		c.Error(err)
-	}
-	return c
+	return json.NewEncoder(c.ResponseWriter).Encode(data)
 }
 
-func (c *Context) String(data string) *Context {
+func (c *Context) String(data string) error {
 	c.ResponseWriter.Header().Set("Content-Type", "text/plain")
 	c.writeHeader()
-	if _, err := c.ResponseWriter.Write([]byte(data)); err != nil {
-		c.Error(err)
-	}
-	return c
-}
-
-func (c *Context) Error(err error) {
-	c.errors = append(c.errors, err)
+	_, err := c.ResponseWriter.Write([]byte(data))
+	return err
 }
 
 func (c *Context) writeHeader() {

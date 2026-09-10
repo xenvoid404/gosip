@@ -1,0 +1,424 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>gosip: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/xenvoid404/gosip/context.go (100.0%)</option>
+				
+				<option value="file1">github.com/xenvoid404/gosip/example/main.go (0.0%)</option>
+				
+				<option value="file2">github.com/xenvoid404/gosip/router.go (66.7%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package gosip
+
+import (
+        "encoding/json"
+        "net/http"
+)
+
+type Context struct {
+        ResponseWriter http.ResponseWriter
+        Request        *http.Request
+        handlers       []HandlerFunc
+        index          int
+        statusCode     int
+        wroteHeader    bool
+}
+
+func (c *Context) Next() error <span class="cov8" title="1">{
+        c.index++
+        if c.index &lt; len(c.handlers) </span><span class="cov8" title="1">{
+                return c.handlers[c.index](c)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (c *Context) Status(code int) *Context <span class="cov8" title="1">{
+        c.statusCode = code
+        return c
+}</span>
+
+func (c *Context) JSON(data any) error <span class="cov8" title="1">{
+        c.ResponseWriter.Header().Set("Content-Type", "application/json")
+        c.writeHeader()
+        return json.NewEncoder(c.ResponseWriter).Encode(data)
+}</span>
+
+func (c *Context) String(data string) error <span class="cov8" title="1">{
+        c.ResponseWriter.Header().Set("Content-Type", "text/plain")
+        c.writeHeader()
+        _, err := c.ResponseWriter.Write([]byte(data))
+        return err
+}</span>
+
+func (c *Context) writeHeader() <span class="cov8" title="1">{
+        if c.wroteHeader </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">if c.statusCode == 0 </span><span class="cov8" title="1">{
+                c.statusCode = StatusOK
+        }</span>
+        <span class="cov8" title="1">c.ResponseWriter.WriteHeader(c.statusCode)
+        c.wroteHeader = true</span>
+}
+
+func (c *Context) Query(key string) string <span class="cov8" title="1">{
+        return c.Request.URL.Query().Get(key)
+}</span>
+
+func (c *Context) Params(key string) string <span class="cov8" title="1">{
+        return c.Request.PathValue(key)
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+import (
+        "log"
+
+        "github.com/xenvoid404/gosip"
+)
+
+func main() <span class="cov0" title="0">{
+        r := gosip.New()
+        r.Get("/carmen", func(c *gosip.Context) error </span><span class="cov0" title="0">{
+                return c.Status(gosip.StatusOK).JSON(gosip.Map{
+                        "success": true,
+                        "message": "cantik banget",
+                })
+        }</span>)
+        <span class="cov0" title="0">r.Get("/carmen/{id}", func(c *gosip.Context) error </span><span class="cov0" title="0">{
+                id := c.Params("id")
+                return c.Status(gosip.StatusOK).JSON(gosip.Map{
+                        "success": true,
+                        "message": "carmen" + id,
+                })
+        }</span>)
+
+        <span class="cov0" title="0">if err := r.Listen(":8000"); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("server error: %v", err)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package gosip
+
+import (
+        "context"
+        "errors"
+        "log"
+        "net/http"
+        "os"
+        "os/signal"
+        "strings"
+        "syscall"
+        "time"
+)
+
+const (
+        defaultReadHeaderTimeout = 5 * time.Second
+        defaultReadTimeout       = 15 * time.Second
+        defaultWriteTimeout      = 15 * time.Second
+        defaultIdleTimeout       = 60 * time.Second
+        defaultShutdownTimeout   = 10 * time.Second
+)
+
+type HandlerFunc func(*Context) error
+type ErrorHandlerFunc func(error, *Context) error
+
+type Router struct {
+        mux              *http.ServeMux
+        middlewares      []HandlerFunc
+        prefix           string
+        root             *Router
+        notFound         HandlerFunc
+        methodNotAllowed HandlerFunc
+        errorHandler     ErrorHandlerFunc
+}
+
+func New() *Router <span class="cov8" title="1">{
+        r := &amp;Router{
+                mux: http.NewServeMux(),
+        }
+        r.root = r
+        r.notFound = defaultNotFound
+        r.methodNotAllowed = defaultMethodNotAllowed
+        r.errorHandler = defaultErrorHandler
+        r.mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) </span><span class="cov8" title="1">{
+                fallback := r.root.notFound
+                if r.isMethodNotAllowed(req) </span><span class="cov8" title="1">{
+                        fallback = r.root.methodNotAllowed
+                }</span>
+
+                <span class="cov8" title="1">c := &amp;Context{
+                        ResponseWriter: w,
+                        Request:        req,
+                        handlers:       []HandlerFunc{fallback},
+                        index:          -1,
+                }
+                r.dispatch(c)</span>
+        })
+
+        <span class="cov8" title="1">return r</span>
+}
+
+func (r *Router) Use(middleware ...HandlerFunc) <span class="cov8" title="1">{
+        r.middlewares = append(r.middlewares, middleware...)
+}</span>
+
+func (r *Router) Group(prefix string) *Router <span class="cov8" title="1">{
+        return &amp;Router{
+                mux:         r.mux,
+                middlewares: append([]HandlerFunc{}, r.middlewares...),
+                prefix:      joinPaths(r.prefix, prefix),
+                root:        r.root,
+        }
+}</span>
+
+func (r *Router) Get(pattern string, handlers ...HandlerFunc) <span class="cov8" title="1">{
+        r.handle(http.MethodGet, pattern, handlers...)
+}</span>
+
+func (r *Router) Post(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
+        r.handle(http.MethodPost, pattern, handlers...)
+}</span>
+
+func (r *Router) Put(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
+        r.handle(http.MethodPut, pattern, handlers...)
+}</span>
+
+func (r *Router) Patch(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
+        r.handle(http.MethodPatch, pattern, handlers...)
+}</span>
+
+func (r *Router) Delete(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
+        r.handle(http.MethodDelete, pattern, handlers...)
+}</span>
+
+func (r *Router) Options(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
+        r.handle(http.MethodOptions, pattern, handlers...)
+}</span>
+
+func (r *Router) Head(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
+        r.handle(http.MethodHead, pattern, handlers...)
+}</span>
+
+func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) <span class="cov8" title="1">{
+        fullPath := joinPaths(r.prefix, pattern)
+        fullPattern := method + " " + fullPath
+
+        all := make([]HandlerFunc, 0, len(r.middlewares)+len(handlers))
+        all = append(all, r.middlewares...)
+        all = append(all, handlers...)
+
+        r.mux.HandleFunc(fullPattern, func(w http.ResponseWriter, req *http.Request) </span><span class="cov8" title="1">{
+                c := &amp;Context{
+                        ResponseWriter: w,
+                        Request:        req,
+                        handlers:       all,
+                        index:          -1,
+                }
+                r.dispatch(c)
+        }</span>)
+}
+
+var allMethods = []string{
+        http.MethodGet, http.MethodPost, http.MethodPut,
+        http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodHead,
+}
+
+func (r *Router) isMethodNotAllowed(req *http.Request) bool <span class="cov8" title="1">{
+        originalMethod := req.Method
+        defer func() </span><span class="cov8" title="1">{ req.Method = originalMethod }</span>()
+
+        <span class="cov8" title="1">for _, method := range allMethods </span><span class="cov8" title="1">{
+                if method == originalMethod </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">req.Method = method
+                _, pattern := r.root.mux.Handler(req)
+                if pattern != "/" &amp;&amp; pattern != "" </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+func (r *Router) dispatch(c *Context) <span class="cov8" title="1">{
+        if err := c.Next(); err != nil </span><span class="cov8" title="1">{
+                r.handleError(err, c)
+        }</span>
+}
+
+func (r *Router) handleError(err error, c *Context) <span class="cov8" title="1">{
+        if c.wroteHeader </span><span class="cov8" title="1">{
+                log.Printf("gosip: error setelah response dikirim: %v", err)
+                return
+        }</span>
+        <span class="cov8" title="1">if herr := r.root.errorHandler(err, c); herr != nil </span><span class="cov0" title="0">{
+                log.Printf("gosip: error handler gagal: %v", herr)
+        }</span>
+}
+
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
+        r.mux.ServeHTTP(w, req)
+}</span>
+
+func (r *Router) Listen(addr string) error <span class="cov0" title="0">{
+        srv := &amp;http.Server{
+                Addr:              addr,
+                Handler:           r,
+                ReadHeaderTimeout: defaultReadHeaderTimeout,
+                ReadTimeout:       defaultReadTimeout,
+                WriteTimeout:      defaultWriteTimeout,
+                IdleTimeout:       defaultIdleTimeout,
+        }
+        return r.ListenWithServer(srv)
+}</span>
+
+func (r *Router) ListenWithServer(srv *http.Server) error <span class="cov0" title="0">{
+        if srv.Handler == nil </span><span class="cov0" title="0">{
+                srv.Handler = r
+        }</span>
+
+        <span class="cov0" title="0">errCh := make(chan error, 1)
+        go func() </span><span class="cov0" title="0">{
+                errCh &lt;- srv.ListenAndServe()
+        }</span>()
+
+        <span class="cov0" title="0">quit := make(chan os.Signal, 1)
+        signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+        defer signal.Stop(quit)
+
+        select </span>{
+        case err := &lt;-errCh:<span class="cov0" title="0">
+                if errors.Is(err, http.ErrServerClosed) </span><span class="cov0" title="0">{
+                        return nil
+                }</span>
+                <span class="cov0" title="0">return err</span>
+        case sig := &lt;-quit:<span class="cov0" title="0">
+                log.Printf("menerima signal %s, mematikan server...", sig)
+                ctx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
+                defer cancel()
+                return srv.Shutdown(ctx)</span>
+        }
+}
+
+func joinPaths(prefix, path string) string <span class="cov8" title="1">{
+        if prefix == "" </span><span class="cov8" title="1">{
+                return path
+        }</span>
+        <span class="cov8" title="1">if path == "" </span><span class="cov8" title="1">{
+                return prefix
+        }</span>
+        <span class="cov8" title="1">return strings.TrimRight(prefix, "/") + "/" + strings.TrimLeft(path, "/")</span>
+}
+
+func defaultNotFound(c *Context) error <span class="cov8" title="1">{
+        return c.Status(StatusNotFound).String("404 Not Found")
+}</span>
+
+func defaultMethodNotAllowed(c *Context) error <span class="cov8" title="1">{
+        return c.Status(StatusMethodNotAllowed).String("405 Method Not Allowed")
+}</span>
+
+func defaultErrorHandler(err error, c *Context) error <span class="cov8" title="1">{
+        log.Printf("gosip: error yang tidak tertangani %v", err)
+        return c.Status(StatusInternalServerError).String("500 Internal Server Error")
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
