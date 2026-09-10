@@ -45,3 +45,27 @@ func TestRouterWrongMethod(t *testing.T) {
 		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusMethodNotAllowed)
 	}
 }
+
+func TestRouterChaining(t *testing.T) {
+	r := New()
+
+	var order []string
+	r.Use(func(c *Context) { order = append(order, "mw1"); c.Next() })
+	r.Use(func(c *Context) { order = append(order, "mw2"); c.Next() })
+	r.Get("/carmen", func(c *Context) { order = append(order, "handler"); c.String("ok") })
+
+	rec := doRequest(r, http.MethodGet, "/carmen")
+	if rec.Body.String() != "ok" {
+		t.Fatalf("body = %q, harusnya %q", rec.Body.String(), "ok")
+	}
+
+	want := []string{"mw1", "mw2", "handler"}
+	if len(order) != len(want) {
+		t.Fatalf("order = %v, harusnya %v", order, want)
+	}
+	for i := range want {
+		if order[i] != want[i] {
+			t.Fatalf("order = %v, harusnya %v", order, want)
+		}
+	}
+}
