@@ -106,3 +106,39 @@ func TestContextParams(t *testing.T) {
 		t.Fatalf("id = %q, harusnya %q", got, "3")
 	}
 }
+
+func TestContextNextRun(t *testing.T) {
+	var order []int
+	handlers := []HandlerFunc{
+		func(c *Context) { order = append(order, 1); c.Next() },
+		func(c *Context) { order = append(order, 2); c.Next() },
+		func(c *Context) { order = append(order, 3) },
+	}
+	c := &Context{handlers: handlers, index: -1}
+	c.Next()
+
+	want := []int{1, 2, 3}
+	if len(order) != len(want) {
+		t.Fatalf("order = %v, harusnya %v", order, want)
+	}
+	for i := range want {
+		if order[i] != want[i] {
+			t.Fatalf("order = %v, harusnya %v", order, want)
+		}
+	}
+}
+
+func TestContextNextNothing(t *testing.T) {
+	called := 0
+	handlers := []HandlerFunc{
+		func(c *Context) { called++ },
+	}
+	c := &Context{handlers: handlers, index: -1}
+
+	c.Next()
+	c.Next() // pemanggilan ekstra ngga boleh jalanin handler lagi
+
+	if called != 1 {
+		t.Fatalf("handler dipanggil %d kali, harusnya 1", called)
+	}
+}
