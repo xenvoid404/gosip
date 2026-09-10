@@ -31,6 +31,7 @@ type Router struct {
 	notFound         HandlerFunc
 	methodNotAllowed HandlerFunc
 	errorHandler     ErrorHandlerFunc
+	routeCount       int
 }
 
 func New() *Router {
@@ -108,6 +109,8 @@ func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) {
 	all = append(all, r.middlewares...)
 	all = append(all, handlers...)
 
+	r.root.routeCount++
+
 	r.mux.HandleFunc(fullPattern, func(w http.ResponseWriter, req *http.Request) {
 		c := &Context{
 			ResponseWriter: w,
@@ -170,6 +173,7 @@ func (r *Router) Listen(addr string) error {
 		WriteTimeout:      defaultWriteTimeout,
 		IdleTimeout:       defaultIdleTimeout,
 	}
+	r.printBanner(addr)
 	return r.ListenWithServer(srv)
 }
 
