@@ -2,6 +2,7 @@ package gosip
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -65,6 +66,25 @@ func TestContextWriteHeader(t *testing.T) {
 	}
 	if rec.Body.String() != "kesatukedua" {
 		t.Fatalf("body = %q, harusnya: %q", rec.Body.String(), "kesatukedua")
+	}
+}
+
+func TestContextError(t *testing.T) {
+	c, rec := newTestContext(http.MethodGet, "/")
+
+	err1 := errors.New("e1")
+	err2 := errors.New("e2")
+	c.Error(err1)
+	c.Error(err2)
+
+	if len(c.errors) != 2 || c.errors[0] != err1 || c.errors[1] != err2 {
+		t.Fatalf("error = %v, harusnya [%v, %v]", c.errors, err1, err2)
+	}
+	if c.wroteHeader {
+		t.Fatal("harusnya ngga nulis header response")
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("harusnya ngga nulis body, body = %q", rec.Body.String())
 	}
 }
 
