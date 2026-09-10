@@ -55,11 +55,13 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/xenvoid404/gosip/context.go (100.0%)</option>
+				<option value="file0">github.com/xenvoid404/gosip/banner.go (0.0%)</option>
 				
-				<option value="file1">github.com/xenvoid404/gosip/example/main.go (0.0%)</option>
+				<option value="file1">github.com/xenvoid404/gosip/context.go (100.0%)</option>
 				
-				<option value="file2">github.com/xenvoid404/gosip/router.go (66.7%)</option>
+				<option value="file2">github.com/xenvoid404/gosip/example/main.go (0.0%)</option>
+				
+				<option value="file3">github.com/xenvoid404/gosip/router.go (67.5%)</option>
 				
 				</select>
 			</div>
@@ -76,10 +78,110 @@
 		<pre class="file" id="file0" style="display: none">package gosip
 
 import (
+        "fmt"
+        "os"
+        "strconv"
+        "strings"
+)
+
+const Version = "0.1.0"
+
+const (
+        ansiReset  = "\x1b[0m"
+        ansiBold   = "\x1b[1m"
+        ansiRed    = "\x1b[38;5;9m"
+        ansiPurple = "\x1b[38;5;141m"
+        ansiCyan   = "\x1b[38;5;80m"
+        ansiGreen  = "\x1b[38;5;114m"
+)
+
+var logo = [...]string{
+        "  ██████      ██████      ████████  ██████████  ████████  ",
+        "██      ██  ██      ██  ██              ██      ██      ██",
+        "██          ██      ██  ██              ██      ██      ██",
+        "██  ██████  ██      ██    ██████        ██      ████████  ",
+        "██      ██  ██      ██          ██      ██      ██        ",
+        "██      ██  ██      ██          ██      ██      ██        ",
+        "  ██████      ██████    ████████    ██████████  ██        ",
+}
+
+func (r *Router) printBanner(addr string) <span class="cov0" title="0">{
+        color := isTerminal() &amp;&amp; os.Getenv("NO_COLOR") == ""
+
+        host, port := splitAddr(addr)
+        localURL := fmt.Sprintf("http://%s:%s/", prettyHost(host), port)
+
+        purple := func(s string) string </span><span class="cov0" title="0">{ return paint(s, ansiPurple, color) }</span>
+        <span class="cov0" title="0">red := func(s string) string </span><span class="cov0" title="0">{ return paint(s, ansiRed, color) }</span>
+        <span class="cov0" title="0">boldCyan := func(s string) string </span><span class="cov0" title="0">{ return paint(s, ansiBold+ansiCyan, color) }</span>
+        <span class="cov0" title="0">green := func(s string) string </span><span class="cov0" title="0">{ return paint(s, ansiGreen, color) }</span>
+        <span class="cov0" title="0">arrow := purple("➜")
+
+        var b strings.Builder
+        b.WriteString("\n")
+        for _, line := range logo </span><span class="cov0" title="0">{
+                b.WriteString("  " + purple(line) + "\n")
+        }</span>
+        <span class="cov0" title="0">b.WriteString("\n")
+        b.WriteString("  " + red(" v"+Version) + "\n\n")
+        fmt.Fprintf(&amp;b, "  %s  %s %s\n", arrow, "Local:  ", boldCyan(localURL))
+        fmt.Fprintf(&amp;b, "  %s  %s %s\n", arrow, "Network:", "bound on "+host+":"+port)
+        fmt.Fprintf(&amp;b, "  %s  %s %s\n", arrow, "Routes: ", green(strconv.Itoa(r.root.routeCount)))
+        fmt.Fprintf(&amp;b, "  %s  %s %s\n", arrow, "PID:    ", red(strconv.Itoa(os.Getpid())))
+        b.WriteString("\n")
+
+        fmt.Print(b.String())</span>
+}
+
+func isTerminal() bool <span class="cov0" title="0">{
+        fi, err := os.Stdout.Stat()
+        if err != nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov0" title="0">return fi.Mode()&amp;os.ModeCharDevice != 0</span>
+}
+
+func splitAddr(addr string) (host, port string) <span class="cov0" title="0">{
+        if addr == "" </span><span class="cov0" title="0">{
+                return "0.0.0.0", "8000"
+        }</span>
+        <span class="cov0" title="0">i := strings.LastIndex(addr, ":")
+        if i &lt; 0 </span><span class="cov0" title="0">{
+                return "0.0.0.0", addr
+        }</span>
+        <span class="cov0" title="0">host = addr[:i]
+        port = addr[i+1:]
+        if host == "" </span><span class="cov0" title="0">{
+                host = "0.0.0.0"
+        }</span>
+        <span class="cov0" title="0">return</span>
+}
+
+func prettyHost(host string) string <span class="cov0" title="0">{
+        switch host </span>{
+        case "", "0.0.0.0", "::", "[::]":<span class="cov0" title="0">
+                return "127.0.0.1"</span>
+        }
+        <span class="cov0" title="0">return host</span>
+}
+
+func paint(s, colorCode string, enabled bool) string <span class="cov0" title="0">{
+        if !enabled </span><span class="cov0" title="0">{
+                return s
+        }</span>
+        <span class="cov0" title="0">return colorCode + s + ansiReset</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package gosip adalah wrapper net/http router yang ringan dan minimalis.
+package gosip
+
+import (
         "encoding/json"
         "net/http"
 )
 
+// Context membawa objek request, response, dan state dari siklus eksekusi HTTP.
 type Context struct {
         ResponseWriter http.ResponseWriter
         Request        *http.Request
@@ -89,6 +191,7 @@ type Context struct {
         wroteHeader    bool
 }
 
+// Next mengeksekusi handler atau middleware selanjutnya dalam rantai antrean.
 func (c *Context) Next() error <span class="cov8" title="1">{
         c.index++
         if c.index &lt; len(c.handlers) </span><span class="cov8" title="1">{
@@ -97,17 +200,20 @@ func (c *Context) Next() error <span class="cov8" title="1">{
         <span class="cov8" title="1">return nil</span>
 }
 
+// Status menetapkan kode status HTTP untuk respons.
 func (c *Context) Status(code int) *Context <span class="cov8" title="1">{
         c.statusCode = code
         return c
 }</span>
 
+// JSON mengirimkan respons berformat JSON dan secara otomatis mengatur header Content-Type.
 func (c *Context) JSON(data any) error <span class="cov8" title="1">{
         c.ResponseWriter.Header().Set("Content-Type", "application/json")
         c.writeHeader()
         return json.NewEncoder(c.ResponseWriter).Encode(data)
 }</span>
 
+// String mengirimkan respons berupa teks biasa (plain text).
 func (c *Context) String(data string) error <span class="cov8" title="1">{
         c.ResponseWriter.Header().Set("Content-Type", "text/plain")
         c.writeHeader()
@@ -115,6 +221,7 @@ func (c *Context) String(data string) error <span class="cov8" title="1">{
         return err
 }</span>
 
+// writeHeader menuliskan status header ke response jika belum ditulis sebelumnya.
 func (c *Context) writeHeader() <span class="cov8" title="1">{
         if c.wroteHeader </span><span class="cov8" title="1">{
                 return
@@ -126,16 +233,18 @@ func (c *Context) writeHeader() <span class="cov8" title="1">{
         c.wroteHeader = true</span>
 }
 
+// Query mengambil nilai dari parameter query URL berdasarkan kunci yang diberikan.
 func (c *Context) Query(key string) string <span class="cov8" title="1">{
         return c.Request.URL.Query().Get(key)
 }</span>
 
+// Params mengambil nilai dari parameter path dinamis URL berdasarkan kunci yang diberikan.
 func (c *Context) Params(key string) string <span class="cov8" title="1">{
         return c.Request.PathValue(key)
 }</span>
 </pre>
 		
-		<pre class="file" id="file1" style="display: none">package main
+		<pre class="file" id="file2" style="display: none">package main
 
 import (
         "log"
@@ -145,7 +254,26 @@ import (
 
 func main() <span class="cov0" title="0">{
         r := gosip.New()
-        r.Get("/carmen", func(c *gosip.Context) error </span><span class="cov0" title="0">{
+        r.SetNotFoundHandler(func(c *gosip.Context) error </span><span class="cov0" title="0">{
+                return c.Status(gosip.StatusNotFound).JSON(gosip.Map{
+                        "success": false,
+                        "message": "not found",
+                })
+        }</span>)
+        <span class="cov0" title="0">r.SetMethodNotAllowedHandler(func(c *gosip.Context) error </span><span class="cov0" title="0">{
+                return c.Status(gosip.StatusMethodNotAllowed).JSON(gosip.Map{
+                        "success": false,
+                        "message": "method not allowed",
+                })
+        }</span>)
+        <span class="cov0" title="0">r.SetErrorHandler(func(err error, c *gosip.Context) error </span><span class="cov0" title="0">{
+                return c.Status(gosip.StatusInternalServerError).JSON(gosip.Map{
+                        "success": false,
+                        "message": "internal server error",
+                })
+        }</span>)
+
+        <span class="cov0" title="0">r.Get("/carmen", func(c *gosip.Context) error </span><span class="cov0" title="0">{
                 return c.Status(gosip.StatusOK).JSON(gosip.Map{
                         "success": true,
                         "message": "cantik banget",
@@ -165,7 +293,7 @@ func main() <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">package gosip
+		<pre class="file" id="file3" style="display: none">package gosip
 
 import (
         "context"
@@ -187,9 +315,13 @@ const (
         defaultShutdownTimeout   = 10 * time.Second
 )
 
+// HandlerFunc mendefinisikan signature fungsi untuk menangani request HTTP.
 type HandlerFunc func(*Context) error
+
+// ErrorHandlerFunc mendefinisikan signature fungsi untuk menangani error dari HandlerFunc.
 type ErrorHandlerFunc func(error, *Context) error
 
+// Router adalah HTTP request multiplexer yang mendukung registrasi rute, grup, dan middleware.
 type Router struct {
         mux              *http.ServeMux
         middlewares      []HandlerFunc
@@ -198,8 +330,10 @@ type Router struct {
         notFound         HandlerFunc
         methodNotAllowed HandlerFunc
         errorHandler     ErrorHandlerFunc
+        routeCount       int
 }
 
+// New membuat dan mengembalikan instance Router baru dengan konfigurasi bawaan.
 func New() *Router <span class="cov8" title="1">{
         r := &amp;Router{
                 mux: http.NewServeMux(),
@@ -226,10 +360,13 @@ func New() *Router <span class="cov8" title="1">{
         <span class="cov8" title="1">return r</span>
 }
 
+// Use menambahkan middleware ke dalam router saat ini dan sub-grup di bawahnya.
 func (r *Router) Use(middleware ...HandlerFunc) <span class="cov8" title="1">{
         r.middlewares = append(r.middlewares, middleware...)
 }</span>
 
+// Group membuat dan mengembalikan instance Router baru yang berbagi mux sama,
+// dengan tambahan prefix pada path.
 func (r *Router) Group(prefix string) *Router <span class="cov8" title="1">{
         return &amp;Router{
                 mux:         r.mux,
@@ -239,34 +376,43 @@ func (r *Router) Group(prefix string) *Router <span class="cov8" title="1">{
         }
 }</span>
 
+// Get mendaftarkan handler untuk metode HTTP GET.
 func (r *Router) Get(pattern string, handlers ...HandlerFunc) <span class="cov8" title="1">{
         r.handle(http.MethodGet, pattern, handlers...)
 }</span>
 
+// Post mendaftarkan handler untuk metode HTTP POST.
 func (r *Router) Post(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
         r.handle(http.MethodPost, pattern, handlers...)
 }</span>
 
+// Put mendaftarkan handler untuk metode HTTP PUT.
 func (r *Router) Put(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
         r.handle(http.MethodPut, pattern, handlers...)
 }</span>
 
+// Patch mendaftarkan handler untuk metode HTTP PATCH.
 func (r *Router) Patch(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
         r.handle(http.MethodPatch, pattern, handlers...)
 }</span>
 
+// Delete mendaftarkan handler untuk metode HTTP DELETE.
 func (r *Router) Delete(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
         r.handle(http.MethodDelete, pattern, handlers...)
 }</span>
 
+// Options mendaftarkan handler untuk metode HTTP OPTIONS.
 func (r *Router) Options(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
         r.handle(http.MethodOptions, pattern, handlers...)
 }</span>
 
+// Head mendaftarkan handler untuk metode HTTP HEAD.
 func (r *Router) Head(pattern string, handlers ...HandlerFunc) <span class="cov0" title="0">{
         r.handle(http.MethodHead, pattern, handlers...)
 }</span>
 
+// handle merupakan fungsi internal untuk menyatukan middleware dan handler,
+// lalu mendaftarkannya ke ServeMux internal.
 func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) <span class="cov8" title="1">{
         fullPath := joinPaths(r.prefix, pattern)
         fullPattern := method + " " + fullPath
@@ -274,6 +420,8 @@ func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) <span c
         all := make([]HandlerFunc, 0, len(r.middlewares)+len(handlers))
         all = append(all, r.middlewares...)
         all = append(all, handlers...)
+
+        r.root.routeCount++
 
         r.mux.HandleFunc(fullPattern, func(w http.ResponseWriter, req *http.Request) </span><span class="cov8" title="1">{
                 c := &amp;Context{
@@ -291,6 +439,7 @@ var allMethods = []string{
         http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodHead,
 }
 
+// isMethodNotAllowed mengecek apakah path valid namun method HTTP tidak diizinkan.
 func (r *Router) isMethodNotAllowed(req *http.Request) bool <span class="cov8" title="1">{
         originalMethod := req.Method
         defer func() </span><span class="cov8" title="1">{ req.Method = originalMethod }</span>()
@@ -308,12 +457,14 @@ func (r *Router) isMethodNotAllowed(req *http.Request) bool <span class="cov8" t
         <span class="cov8" title="1">return false</span>
 }
 
+// dispatch mengeksekusi urutan handler dan menangani error jika terjadi kegagalan.
 func (r *Router) dispatch(c *Context) <span class="cov8" title="1">{
         if err := c.Next(); err != nil </span><span class="cov8" title="1">{
                 r.handleError(err, c)
         }</span>
 }
 
+// handleError memastikan error ditangani oleh error handler yang didaftarkan.
 func (r *Router) handleError(err error, c *Context) <span class="cov8" title="1">{
         if c.wroteHeader </span><span class="cov8" title="1">{
                 log.Printf("gosip: error setelah response dikirim: %v", err)
@@ -324,10 +475,31 @@ func (r *Router) handleError(err error, c *Context) <span class="cov8" title="1"
         }</span>
 }
 
+// SetNotFoundHandler menetapkan handler yang dipanggil ketika tidak ada route yang
+// cocok dengan path request. Menggantikan handler 404 default.
+func (r *Router) SetNotFoundHandler(h HandlerFunc) <span class="cov8" title="1">{
+        r.root.notFound = h
+}</span>
+
+// SetMethodNotAllowedHandler menetapkan handler yang dipanggil ketika path cocok
+// tetapi HTTP method tidak terdaftar. Menggantikan handler 405 default.
+func (r *Router) SetMethodNotAllowedHandler(h HandlerFunc) <span class="cov8" title="1">{
+        r.root.methodNotAllowed = h
+}</span>
+
+// SetErrorHandler menetapkan handler yang dipanggil ketika sebuah handler
+// mengembalikan error dan respons belum dikirim ke klien.
+// Menggantikan error handler default.
+func (r *Router) SetErrorHandler(h ErrorHandlerFunc) <span class="cov8" title="1">{
+        r.root.errorHandler = h
+}</span>
+
+// ServeHTTP memungkinkan Router untuk digunakan sebagai http.Handler yang standar.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) <span class="cov8" title="1">{
         r.mux.ServeHTTP(w, req)
 }</span>
 
+// Listen memulai server HTTP dengan konfigurasi timeout standar dan dukungan graceful shutdown.
 func (r *Router) Listen(addr string) error <span class="cov0" title="0">{
         srv := &amp;http.Server{
                 Addr:              addr,
@@ -337,9 +509,12 @@ func (r *Router) Listen(addr string) error <span class="cov0" title="0">{
                 WriteTimeout:      defaultWriteTimeout,
                 IdleTimeout:       defaultIdleTimeout,
         }
+        r.printBanner(addr)
         return r.ListenWithServer(srv)
 }</span>
 
+// ListenWithServer menjalankan server menggunakan instansiasi *http.Server kustom,
+// serta menangani graceful shutdown secara otomatis.
 func (r *Router) ListenWithServer(srv *http.Server) error <span class="cov0" title="0">{
         if srv.Handler == nil </span><span class="cov0" title="0">{
                 srv.Handler = r
@@ -368,6 +543,7 @@ func (r *Router) ListenWithServer(srv *http.Server) error <span class="cov0" tit
         }
 }
 
+// joinPaths menggabungkan prefix dan path untuk mencegah slash ganda secara konsisten.
 func joinPaths(prefix, path string) string <span class="cov8" title="1">{
         if prefix == "" </span><span class="cov8" title="1">{
                 return path
@@ -378,14 +554,17 @@ func joinPaths(prefix, path string) string <span class="cov8" title="1">{
         <span class="cov8" title="1">return strings.TrimRight(prefix, "/") + "/" + strings.TrimLeft(path, "/")</span>
 }
 
+// defaultNotFound adalah fallback ketika URL yang diminta tidak ditemukan.
 func defaultNotFound(c *Context) error <span class="cov8" title="1">{
         return c.Status(StatusNotFound).String("404 Not Found")
 }</span>
 
+// defaultMethodNotAllowed adalah fallback saat path tersedia tapi dengan method yang berbeda.
 func defaultMethodNotAllowed(c *Context) error <span class="cov8" title="1">{
         return c.Status(StatusMethodNotAllowed).String("405 Method Not Allowed")
 }</span>
 
+// defaultErrorHandler adalah fallback untuk menangani error yang dikembalikan handler atau middleware.
 func defaultErrorHandler(err error, c *Context) error <span class="cov8" title="1">{
         log.Printf("gosip: error yang tidak tertangani %v", err)
         return c.Status(StatusInternalServerError).String("500 Internal Server Error")

@@ -246,3 +246,68 @@ func TestJoinPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestRouterCustomNotFound(t *testing.T) {
+	r := New()
+	r.SetNotFoundHandler(func(c *Context) error {
+		return c.Status(StatusNotFound).JSON(Map{"error": "custom 404"})
+	})
+
+	rec := doRequest(r, http.MethodGet, "/ghost")
+	if rec.Code != StatusNotFound {
+		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusNotFound)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, harusnya application/json", ct)
+	}
+	if !strings.Contains(rec.Body.String(), "custom 404") {
+		t.Fatalf("body = %q, harusnya memuat 'custom 404'", rec.Body.String())
+	}
+}
+
+func TestRouterCustomMethodNotAllowed(t *testing.T) {
+	r := New()
+	r.Get("/mbg", func(c *Context) error { return c.String("ok") })
+	r.SetMethodNotAllowedHandler(func(c *Context) error {
+		return c.Status(StatusMethodNotAllowed).JSON(Map{"error": "custom 405"})
+	})
+
+	rec := doRequest(r, http.MethodPost, "/mbg")
+	if rec.Code != StatusMethodNotAllowed {
+		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusMethodNotAllowed)
+	}
+	if !strings.Contains(rec.Body.String(), "custom 405") {
+		t.Fatalf("body = %q, harusnya memuat 'custom 405'", rec.Body.String())
+	}
+}
+
+func TestRouterCustomErrorHandler(t *testing.T) {
+	r := New()
+	r.SetErrorHandler(func(err error, c *Context) error {
+		return c.Status(StatusBadRequest).JSON(Map{"error": err.Error()})
+	})
+	r.Get("/boom", func(c *Context) error {
+		return errors.New("sesuatu rusak")
+	})
+
+	rec := doRequest(r, http.MethodGet, "/boom")
+	if rec.Code != StatusBadRequest {
+		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusBadRequest)
+	}
+	if !strings.Contains(rec.Body.String(), "sesuatu rusak") {
+		t.Fatalf("body = %q, harusnya memuat pesan error asli", rec.Body.String())
+	}
+}
+
+func TestRouterCustomHandlerFromGroup(t *testing.T) {
+	r := New()
+	api := r.Group("/api")
+	api.SetNotFoundHandler(func(c *Context) error {
+		return c.Status(StatusTeapot).String("dari group")
+	})
+
+	rec := doRequest(r, http.MethodGet, "/ghost")
+	if rec.Code != StatusTeapot {
+		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusTeapot)
+	}
+}

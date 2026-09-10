@@ -8,6 +8,25 @@ import (
 
 func main() {
 	r := gosip.New()
+	r.SetNotFoundHandler(func(c *gosip.Context) error {
+		return c.Status(gosip.StatusNotFound).JSON(gosip.Map{
+			"success": false,
+			"message": "not found",
+		})
+	})
+	r.SetMethodNotAllowedHandler(func(c *gosip.Context) error {
+		return c.Status(gosip.StatusMethodNotAllowed).JSON(gosip.Map{
+			"success": false,
+			"message": "method not allowed",
+		})
+	})
+	r.SetErrorHandler(func(err error, c *gosip.Context) error {
+		return c.Status(gosip.StatusInternalServerError).JSON(gosip.Map{
+			"success": false,
+			"message": "internal server error",
+		})
+	})
+
 	r.Get("/carmen", func(c *gosip.Context) error {
 		return c.Status(gosip.StatusOK).JSON(gosip.Map{
 			"success": true,
