@@ -160,6 +160,25 @@ func (r *Router) handleError(err error, c *Context) {
 	}
 }
 
+// SetNotFoundHandler kustomisasi handler untuk kasus tidak ada route yang
+// cocok dengan path request (404). Handler ini dijalankan tanpa middleware
+// global — hanya handler ini sendiri yang dieksekusi.
+func (r *Router) SetNotFoundHandler(h HandlerFunc) {
+	r.root.notFound = h
+}
+
+// SetMethodNotAllowedHandler kustomisasi handler untuk kasus path cocok
+// tapi method HTTP request tidak cocok untuk path tersebut (405).
+func (r *Router) SetMethodNotAllowedHandler(h HandlerFunc) {
+	r.root.methodNotAllowed = h
+}
+
+// SetErrorHandler kustomisasi handler yang dipanggil saat ada error
+// tertampung (lewat Context.Error) dan respons belum ditulis.
+func (r *Router) SetErrorHandler(h HandlerFunc) {
+	r.root.errorHandler = h
+}
+
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
 }
