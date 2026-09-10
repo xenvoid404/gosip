@@ -36,7 +36,8 @@ type Router struct {
 
 func New() *Router {
 	r := &Router{
-		mux: http.NewServeMux(),
+		mux:     http.NewServeMux(),
+		methods: make(map[string]struct{}),
 	}
 	r.root = r
 	r.notFound = defaultNotFound
