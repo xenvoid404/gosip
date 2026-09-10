@@ -98,3 +98,11 @@ func TestContextQuery(t *testing.T) {
 		t.Fatalf("ghost: %q, harusnya: %q", got, "")
 	}
 }
+
+func TestContextParams(t *testing.T) {
+	c, _ := newTestContext(http.MethodGet, "/capres/3")
+	c.Request.SetPathValue("id", "3")
+	if got := c.Params("id"); got != "3" {
+		t.Fatalf("id = %q, harusnya %q", got, "3")
+	}
+}
