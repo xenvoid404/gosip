@@ -54,6 +54,20 @@ func TestContextJSON(t *testing.T) {
 	}
 }
 
+func TestContextWriteHeader(t *testing.T) {
+	c, rec := newTestContext(http.MethodGet, "/")
+
+	c.Status(StatusOK).String("kesatu")
+	c.Status(StatusInternalServerError).String("kedua")
+
+	if rec.Code != StatusOK {
+		t.Fatalf("status = %d, harusnya: %d (status kedua harusnya dicuekin)", rec.Code, StatusOK)
+	}
+	if rec.Body.String() != "kesatukedua" {
+		t.Fatalf("body = %q, harusnya: %q", rec.Body.String(), "kesatukedua")
+	}
+}
+
 func TestContextQuery(t *testing.T) {
 	req := httptest.NewRequest("GET", "/search?keyword=gosip&page=1", nil)
 	rec := httptest.NewRecorder()
