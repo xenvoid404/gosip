@@ -69,3 +69,45 @@ func TestRouterChaining(t *testing.T) {
 		}
 	}
 }
+
+func TestRouterSkipNext(t *testing.T) {
+	r := New()
+	handlerCalled := false
+	r.Use(func(c *Context) { c.Status(StatusForbidden).String("blocked") }) // ekspektasi ngga memanggil Next()
+	r.Get("/carmen", func(c *Context) { handlerCalled = true; c.String("ok") })
+
+	rec := doRequest(r, http.MethodGet, "/carmen")
+
+	if handlerCalled {
+		t.Fatal("handler seharusnya tidak dipanggil karena middleware tidak memanggil Next()")
+	}
+	if rec.Code != StatusForbidden || rec.Body.String() != "blocked" {
+		t.Fatalf("status=%d body=%q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRouterGroup(t *testing.T) {
+	r := New()
+
+	var order []string
+	r.Use(func(c *Context) { order = append(order, "root-mw"); c.Next() })
+
+	api := r.Group("/api")
+	api.Use(func(c *Context) { order = append(order, "api-mw"); c.Next() })
+	api.Get("/ping", func(c *Context) { order = append(order, "handler"); c.String("pong") })
+
+	rec := doRequest(r, http.MethodGet, "/api/ping")
+	if rec.Body.String() != "pong" {
+		t.Fatalf("body = %q, harusnya %q", rec.Body.String(), "pong")
+	}
+
+	want := []string{"root-mw", "api-mw", "handler"}
+	if len(order) != len(want) {
+		t.Fatalf("order = %v, seharusnya %v", order, want)
+	}
+	for i := range want {
+		if order[i] != want[i] {
+			t.Fatalf("order = %v, harusnya %v", order, want)
+		}
+	}
+}
