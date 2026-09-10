@@ -23,3 +23,14 @@ func TestRouterBasic(t *testing.T) {
 		t.Fatalf("status = %d, body = %q", rec.Code, rec.Body.String())
 	}
 }
+
+func TestRouterUnregisterPath(t *testing.T) {
+	r := New()
+	r.Get("/mbg", func(c *Context) { c.String("mantap") })
+
+	rec := doRequest(r, http.MethodGet, "/carmen")
+
+	if rec.Code != StatusNotFound {
+		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusNotFound)
+	}
+}
