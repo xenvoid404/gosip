@@ -24,12 +24,14 @@ type HandlerFunc func(*Context)
 type ErrorHandlerFunc func([]error, *Context)
 
 type Router struct {
-	mux          *http.ServeMux
-	middlewares  []HandlerFunc
-	prefix       string
-	root         *Router
-	notFound     HandlerFunc
-	errorHandler ErrorHandlerFunc
+	mux              *http.ServeMux
+	middlewares      []HandlerFunc
+	prefix           string
+	root             *Router
+	notFound         HandlerFunc
+	methodNotAllowed HandlerFunc
+	errorHandler     ErrorHandlerFunc
+	methods          map[string]struct{}
 }
 
 func New() *Router {
@@ -38,12 +40,18 @@ func New() *Router {
 	}
 	r.root = r
 	r.notFound = defaultNotFound
+	r.methodNotAllowed = defaultMethodNotAllowed
 	r.errorHandler = defaultErrorHandler
 	r.mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		fallback := r.root.notFound
+		if r.isMethodNotAllowed(req) {
+			fallback = r.root.methodNotAllowed
+		}
+
 		c := &Context{
 			ResponseWriter: w,
 			Request:        req,
-			handlers:       []HandlerFunc{r.root.notFound},
+			handlers:       []HandlerFunc{fallback},
 			index:          -1,
 		}
 		c.Next()
@@ -59,12 +67,14 @@ func (r *Router) Use(middleware ...HandlerFunc) {
 
 func (r *Router) Group(prefix string) *Router {
 	return &Router{
-		mux:          r.mux,
-		middlewares:  append([]HandlerFunc{}, r.middlewares...),
-		prefix:       joinPaths(r.prefix, prefix),
-		root:         r.root,
-		notFound:     r.root.notFound,
-		errorHandler: r.root.errorHandler,
+		mux:              r.mux,
+		middlewares:      append([]HandlerFunc{}, r.middlewares...),
+		prefix:           joinPaths(r.prefix, prefix),
+		root:             r.root,
+		notFound:         r.root.notFound,
+		methodNotAllowed: r.root.methodNotAllowed,
+		errorHandler:     r.root.errorHandler,
+		methods:          r.root.methods,
 	}
 }
 
@@ -104,6 +114,8 @@ func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) {
 	all = append(all, r.middlewares...)
 	all = append(all, handlers...)
 
+	r.root.methods[method] = struct{}{}
+
 	r.mux.HandleFunc(fullPattern, func(w http.ResponseWriter, req *http.Request) {
 		c := &Context{
 			ResponseWriter: w,
@@ -114,6 +126,30 @@ func (r *Router) handle(method, pattern string, handlers ...HandlerFunc) {
 		c.Next()
 		r.handleErrors(c)
 	})
+}
+
+func (r *Router) isMethodNotAllowed(req *http.Request) bool {
+	if len(r.root.methods) == 0 {
+		return false
+	}
+
+	originalMethod := req.Method
+	defer func() {
+		req.Method = originalMethod
+	}()
+
+	for method := range r.root.methods {
+		if method == originalMethod {
+			continue
+		}
+		req.Method = method
+		_, pattern := r.root.mux.Handler(req)
+		if pattern != "/" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (r *Router) handleErrors(c *Context) {
@@ -185,6 +221,10 @@ func joinPaths(prefix, path string) string {
 
 func defaultNotFound(c *Context) {
 	c.Status(StatusNotFound).String("404 Not Found")
+}
+
+func defaultMethodNotAllowed(c *Context) {
+	c.Status(StatusMethodNotAllowed).String("405 Method Not Allowed")
 }
 
 func defaultErrorHandler(errs []error, c *Context) {
