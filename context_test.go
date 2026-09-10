@@ -1,19 +1,19 @@
 package gosip
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestContextStatusDefault(t *testing.T) {
+func newTestContext(method, target string) (*Context, *httptest.ResponseRecorder) {
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
-	c := &Context{
-		ResponseWriter: rec,
-		Request:        req,
-		index:          -1,
-	}
+	req := httptest.NewRequest(method, target, nil)
+	return &Context{ResponseWriter: rec, Request: req, index: -1}, rec
+}
 
+func TestContextStatusDefault(t *testing.T) {
+	c, rec := newTestContext(http.MethodGet, "/")
 	c.String("hidup joko")
 
 	if rec.Code != StatusOK {
@@ -24,6 +24,14 @@ func TestContextStatusDefault(t *testing.T) {
 	}
 	if ct := rec.Header().Get("Content-Type"); ct != "text/plain" {
 		t.Fatalf("Content-Type = %q, harusnya: %q", ct, "text/plain")
+	}
+}
+
+func TestContextStatus(t *testing.T) {
+	c, rec := newTestContext(http.MethodGet, "/")
+	c.Status(StatusCreated).String("hidup joko")
+	if rec.Code != StatusCreated {
+		t.Fatalf("status = %d, harusnya: %d", rec.Code, StatusCreated)
 	}
 }
 
