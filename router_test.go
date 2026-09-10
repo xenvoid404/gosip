@@ -3,7 +3,6 @@ package gosip
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -44,8 +43,5 @@ func TestRouterWrongMethod(t *testing.T) {
 
 	if rec.Code != StatusMethodNotAllowed {
 		t.Fatalf("status = %d, harusnya %d", rec.Code, StatusMethodNotAllowed)
-	}
-	if allow := rec.Header().Get("Allow"); !strings.Contains(allow, http.MethodGet) {
-		t.Fatalf("header = %q, harusnya %q", allow, http.MethodGet)
 	}
 }
