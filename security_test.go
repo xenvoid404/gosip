@@ -25,7 +25,7 @@ func TestCORS_Defaults(t *testing.T) {
 	req2 := httptest.NewRequest(MethodOptions, "/", nil)
 	w2 := httptest.NewRecorder()
 	app.ServeHTTP(w2, req2)
-	
+
 	if w2.Code != StatusNoContent {
 		t.Errorf("CORS OPTIONS Code: want 204, got %d", w2.Code)
 	}
@@ -51,7 +51,7 @@ func TestCORS_SpecificOrigin_And_Credentials(t *testing.T) {
 	req1.Header.Set("Origin", "https://example.com")
 	w1 := httptest.NewRecorder()
 	app.ServeHTTP(w1, req1)
-	
+
 	if w1.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
 		t.Errorf("CORS Origin matched: want https://example.com, got %s", w1.Header().Get("Access-Control-Allow-Origin"))
 	}
@@ -67,7 +67,7 @@ func TestCORS_SpecificOrigin_And_Credentials(t *testing.T) {
 	req2.Header.Set("Origin", "https://hacker.com")
 	w2 := httptest.NewRecorder()
 	app.ServeHTTP(w2, req2)
-	
+
 	if w2.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Errorf("CORS Origin unmatched: want empty, got %s", w2.Header().Get("Access-Control-Allow-Origin"))
 	}
@@ -79,7 +79,7 @@ func TestCORS_Panic_AllOrigin_WithCredentials(t *testing.T) {
 			t.Error("CORS should panic when AllowOrigins='*' and AllowCredentials=true")
 		}
 	}()
-	
+
 	CORS(CORSConfig{
 		AllowOrigins:     []string{"*"},
 		AllowCredentials: true,
