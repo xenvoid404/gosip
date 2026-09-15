@@ -1,25 +1,24 @@
 package gosip
 
 import (
-	"errors"
-	"log"
+	"fmt"
+	"log/slog"
+	"net/http"
 	"runtime/debug"
 )
 
-// ErrPanic adalah error yang dikembalikan Recover ketika menangkap panic.
-// Pesan detail panic tetap dicatat via log, tetapi error yang dilempar ke
-// error handler bersifat generik agar tidak bocor ke klien.
-var ErrPanic = errors.New("panic recovered")
-
-// Recover mengembalikan middleware yang menangkap panic dari handler di
-// hilirnya. Panic diubah menjadi error sehingga ditangani oleh error
-// handler yang terdaftar via Router.OnError.
 func Recover() HandlerFunc {
-	return func(c *Context) (err error) {
+	return func(c *Ctx) (err error) {
 		defer func() {
-			if rec := recover(); rec != nil {
-				log.Printf("gosip: panic: %v\n%s", rec, debug.Stack())
-				err = ErrPanic
+			if r := recover(); r != nil {
+				if r == http.ErrAbortHandler {
+					panic(r)
+				}
+				slog.Error("gosip: panic recovered",
+					slog.Any("panic", r),
+					slog.String("stack", string(debug.Stack())),
+				)
+				err = fmt.Errorf("panic: %v", r)
 			}
 		}()
 		return c.Next()

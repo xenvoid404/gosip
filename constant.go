@@ -1,9 +1,21 @@
 package gosip
 
+import (
+	"net/http"
+)
+
 type Map map[string]any
 
-// Kumpulan alias untuk kode status HTTP,
-// supaya handler bisa menulis gosip.StatusOK alih-alih net/http.
+const (
+	MethodGet     = http.MethodGet
+	MethodPost    = http.MethodPost
+	MethodPut     = http.MethodPut
+	MethodPatch   = http.MethodPatch
+	MethodDelete  = http.MethodDelete
+	MethodOptions = http.MethodOptions
+	MethodHead    = http.MethodHead
+)
+
 const (
 	StatusContinue                      = 100 // RFC 9110, 15.2.1
 	StatusSwitchingProtocols            = 101 // RFC 9110, 15.2.2
