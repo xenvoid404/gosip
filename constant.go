@@ -4,8 +4,11 @@ import (
 	"net/http"
 )
 
+// Map ini tipe alias buat map[string]any biar nulisnya lebih gampang dan nggak kepanjangan.
 type Map map[string]any
 
+// Kumpulan konstan buat HTTP Method.
+// Semuanya ngambil dari stdlib net/http biar tetep standar.
 const (
 	MethodGet     = http.MethodGet
 	MethodPost    = http.MethodPost
@@ -16,6 +19,7 @@ const (
 	MethodHead    = http.MethodHead
 )
 
+// Kumpulan HTTP status code, udah lengkap sama referensi RFC-nya.
 const (
 	StatusContinue                      = 100 // RFC 9110, 15.2.1
 	StatusSwitchingProtocols            = 101 // RFC 9110, 15.2.2
