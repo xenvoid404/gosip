@@ -255,3 +255,97 @@ func TestBindParams_NotPointer(t *testing.T) {
 		t.Fatal("seharusnya return error untuk non-pointer")
 	}
 }
+
+// ── Coverage Tests ────────────────────────────────────────────────────────────
+
+func TestBindQuery_AllTypes_AndErrors(t *testing.T) {
+	type AllTypes struct {
+		UintField    uint      `query:"u"`
+		FloatField   float32   `query:"f"`
+		BoolField    bool      `query:"b"`
+		ComplexField complex64 `query:"c"`
+		unexported   int
+		PointerErr   *int  `query:"pe"`
+		SliceErr     []int `query:"se"`
+	}
+
+	// Test valid all types
+	req := httptest.NewRequest(http.MethodGet, "/?u=123&f=12.5&b=true", nil)
+	c := newCtx(req)
+	var valid AllTypes
+	if err := c.BindQuery(&valid); err != nil {
+		t.Fatalf("tidak harusnya error: %v", err)
+	}
+	if valid.UintField != 123 || valid.FloatField != 12.5 || !valid.BoolField {
+		t.Errorf("hasil binding AllTypes valid tidak sesuai: %+v", valid)
+	}
+
+	// Test invalid uint
+	reqUint := httptest.NewRequest(http.MethodGet, "/?u=abc", nil)
+	if err := newCtx(reqUint).BindQuery(&AllTypes{}); err == nil {
+		t.Error("seharusnya error invalid uint")
+	}
+
+	// Test invalid float
+	reqFloat := httptest.NewRequest(http.MethodGet, "/?f=abc", nil)
+	if err := newCtx(reqFloat).BindQuery(&AllTypes{}); err == nil {
+		t.Error("seharusnya error invalid float")
+	}
+
+	// Test invalid bool
+	reqBool := httptest.NewRequest(http.MethodGet, "/?b=notabool", nil)
+	if err := newCtx(reqBool).BindQuery(&AllTypes{}); err == nil {
+		t.Error("seharusnya error invalid bool")
+	}
+
+	// Test unsupported type
+	reqComplex := httptest.NewRequest(http.MethodGet, "/?c=1+2i", nil)
+	if err := newCtx(reqComplex).BindQuery(&AllTypes{}); err == nil {
+		t.Error("seharusnya error unsupported type")
+	}
+
+	// Test pointer error
+	reqPtrErr := httptest.NewRequest(http.MethodGet, "/?pe=abc", nil)
+	if err := newCtx(reqPtrErr).BindQuery(&AllTypes{}); err == nil {
+		t.Error("seharusnya error pointer ke invalid int")
+	}
+
+	// Test slice error
+	reqSliceErr := httptest.NewRequest(http.MethodGet, "/?se=1&se=abc", nil)
+	if err := newCtx(reqSliceErr).BindQuery(&AllTypes{}); err == nil {
+		t.Error("seharusnya error elemen slice invalid")
+	}
+}
+
+func TestBind_StructElem_NonStructPtr(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/?q=1", nil)
+	c := newCtx(req)
+	var x int
+	if err := c.BindQuery(&x); err == nil {
+		t.Error("seharusnya error jika bukan pointer ke struct")
+	}
+}
+
+func TestBindParams_EmptyValAndUnexported(t *testing.T) {
+	type Params struct {
+		unexported int
+		ID         int `param:"id"`
+	}
+
+	mux := http.NewServeMux()
+	var bindErr error
+
+	// Pattern URL tidak mendefinisikan {id}, jadi PathValue("id") akan ""
+	mux.HandleFunc("GET /posts", func(w http.ResponseWriter, r *http.Request) {
+		c := &Ctx{ResponseWriter: w, Request: r, index: -1}
+		var p Params
+		bindErr = c.BindParams(&p)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	mux.ServeHTTP(httptest.NewRecorder(), req)
+
+	if bindErr != nil {
+		t.Errorf("tidak harusnya error walau parameter kosong (hanya diabaikan), got: %v", bindErr)
+	}
+}

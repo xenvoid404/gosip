@@ -62,9 +62,9 @@ func getStructInfo(rt reflect.Type) *structInfo {
 	return info
 }
 
-// BindJSON mendekode request body JSON ke dalam v.
-// v harus berupa non-nil pointer ke struct.
-// Body otomatis ditutup setelah dibaca.
+// BindJSON ini buat nge-parse body request format JSON langsung masuk ke struct `v`.
+// Pastiin `v` itu pointer ke struct ya, dan jangan nil.
+// Nggak usah repot tutup body request, udah ditutupin otomatis kok.
 func (c *Ctx) BindJSON(v any) error {
 	defer c.Request.Body.Close()
 	if err := json.NewDecoder(c.Request.Body).Decode(v); err != nil {
@@ -73,8 +73,9 @@ func (c *Ctx) BindJSON(v any) error {
 	return nil
 }
 
-// BindQuery mendekode URL query parameters ke dalam v.
-// Field struct harus diberi tag `query:"nama"`.
+// BindQuery ini dipakai buat ngambil data dari URL query parameters (yang ada di URL setelah tanda tanya `?`).
+// Tinggal kasih tag `query:"nama_parameternya"` di struct kamu, nanti datanya otomatis masuk.
+// Asyiknya, dia udah pakai sistem cache, jadi kenceng banget buat request-request selanjutnya!
 func (c *Ctx) BindQuery(v any) error {
 	rv, err := structElem(v)
 	if err != nil {
@@ -82,7 +83,7 @@ func (c *Ctx) BindQuery(v any) error {
 	}
 	info := getStructInfo(rv.Type())
 	vals := c.Request.URL.Query()
-	
+
 	for _, f := range info.QueryFields {
 		values, ok := vals[f.Name]
 		if !ok || len(values) == 0 {
@@ -95,15 +96,16 @@ func (c *Ctx) BindQuery(v any) error {
 	return nil
 }
 
-// BindParams mendekode URL path parameters ke dalam v.
-// Field struct harus diberi tag `param:"nama"`.
+// BindParams mirip kayak BindQuery, tapi ini khusus buat ngambil path parameter di URL.
+// Kasih tag `param:"nama_parameternya"` di field struct kamu biar datanya bisa di-bind.
+// Sama kayak BindQuery, dia juga udah dilengkapin cache biar makin ngebut!
 func (c *Ctx) BindParams(v any) error {
 	rv, err := structElem(v)
 	if err != nil {
 		return fmt.Errorf("gosip: bind params: %w", err)
 	}
 	info := getStructInfo(rv.Type())
-	
+
 	for _, f := range info.ParamFields {
 		val := c.Request.PathValue(f.Name)
 		if val == "" {
