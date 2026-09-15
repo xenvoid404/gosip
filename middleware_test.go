@@ -26,7 +26,7 @@ func TestRecoverMiddleware(t *testing.T) {
 	req1 := httptest.NewRequest(MethodGet, "/panic", nil)
 	w1 := httptest.NewRecorder()
 	app.ServeHTTP(w1, req1)
-	
+
 	if w1.Code != StatusInternalServerError {
 		t.Errorf("Recover panic Code: want 500, got %d", w1.Code)
 	}
@@ -38,7 +38,7 @@ func TestRecoverMiddleware(t *testing.T) {
 			t.Errorf("Recover abort: want http.ErrAbortHandler, got %v", r)
 		}
 	}()
-	
+
 	req2 := httptest.NewRequest(MethodGet, "/abort", nil)
 	w2 := httptest.NewRecorder()
 	app.ServeHTTP(w2, req2)

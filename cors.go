@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// CORSConfig ini tempat kamu ngatur aturan-aturan buat CORS (Cross-Origin Resource Sharing).
 type CORSConfig struct {
 	AllowOrigins     []string
 	AllowMethods     []string
@@ -13,6 +14,10 @@ type CORSConfig struct {
 	MaxAge           int
 }
 
+// CORS ini middleware buat nanganin masalah CORS (Cross-Origin Resource Sharing) di API kamu.
+// Udah dilengkapin default values: allow semua method umum, ngebolehin header standar,
+// dan max-age diset ke 24 jam (86400 detik) biar browser nge-cache preflight request.
+// Awas! Jangan nge-set AllowOrigins jadi "*" kalau AllowCredentials-nya true, nanti bakal panic karena emang dilarang sama browser.
 func CORS(cfg CORSConfig) HandlerFunc {
 	if len(cfg.AllowMethods) == 0 {
 		cfg.AllowMethods = []string{MethodGet, MethodPost, MethodPut, MethodPatch, MethodDelete, MethodOptions}

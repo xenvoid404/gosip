@@ -2,6 +2,7 @@ package gosip
 
 import "fmt"
 
+// HelmetConfig ini tempat settingan buat nambahin header-header keamanan (mirip kayak Helmet.js di ekosistem Node).
 type HelmetConfig struct {
 	XFrameOptions         string
 	ContentSecurityPolicy string
@@ -9,6 +10,9 @@ type HelmetConfig struct {
 	HSTSMaxAge            int
 }
 
+// Helmet ini middleware buat ningkatin keamanan web/API kamu dari serangan XSS, clickjacking, dll.
+// Secara otomatis bakal masangin header keamanan yang udah disesuaiin sama rekomendasi OWASP terbaru.
+// Konfigurasinya opsional, kalau nggak dikasih bakal pakai settingan yang lumayan ketat secara default.
 func Helmet(cfg ...HelmetConfig) HandlerFunc {
 	c := HelmetConfig{}
 	if len(cfg) > 0 {
