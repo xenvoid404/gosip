@@ -7,9 +7,60 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var errNotStructPtr = errors.New("v harus berupa non-nil pointer ke struct")
+
+type fieldInfo struct {
+	Idx  int
+	Name string
+	Type reflect.Type
+}
+
+type structInfo struct {
+	QueryFields []fieldInfo
+	ParamFields []fieldInfo
+}
+
+var structCache sync.Map // map[reflect.Type]*structInfo
+
+func getStructInfo(rt reflect.Type) *structInfo {
+	if info, ok := structCache.Load(rt); ok {
+		return info.(*structInfo)
+	}
+
+	info := &structInfo{}
+	for i := range rt.NumField() {
+		field := rt.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+
+		// parse query tag
+		qName, _, _ := strings.Cut(field.Tag.Get("query"), ",")
+		if qName != "" && qName != "-" {
+			info.QueryFields = append(info.QueryFields, fieldInfo{
+				Idx:  i,
+				Name: qName,
+				Type: field.Type,
+			})
+		}
+
+		// parse param tag
+		pName, _, _ := strings.Cut(field.Tag.Get("param"), ",")
+		if pName != "" && pName != "-" {
+			info.ParamFields = append(info.ParamFields, fieldInfo{
+				Idx:  i,
+				Name: pName,
+				Type: field.Type,
+			})
+		}
+	}
+
+	structCache.Store(rt, info)
+	return info
+}
 
 // BindJSON mendekode request body JSON ke dalam v.
 // v harus berupa non-nil pointer ke struct.
@@ -24,78 +75,42 @@ func (c *Ctx) BindJSON(v any) error {
 
 // BindQuery mendekode URL query parameters ke dalam v.
 // Field struct harus diberi tag `query:"nama"`.
-//
-// Contoh:
-//
-//	type Filter struct {
-//	    Page  int    `query:"page"`
-//	    Limit int    `query:"limit"`
-//	    Search string `query:"q"`
-//	}
 func (c *Ctx) BindQuery(v any) error {
-	if err := decodeValues(c.Request.URL.Query(), v, "query"); err != nil {
+	rv, err := structElem(v)
+	if err != nil {
 		return fmt.Errorf("gosip: bind query: %w", err)
+	}
+	info := getStructInfo(rv.Type())
+	vals := c.Request.URL.Query()
+	
+	for _, f := range info.QueryFields {
+		values, ok := vals[f.Name]
+		if !ok || len(values) == 0 {
+			continue
+		}
+		if err := setField(rv.Field(f.Idx), f.Type, values); err != nil {
+			return fmt.Errorf("gosip: bind query: field %s: %w", rv.Type().Field(f.Idx).Name, err)
+		}
 	}
 	return nil
 }
 
 // BindParams mendekode URL path parameters ke dalam v.
 // Field struct harus diberi tag `param:"nama"`.
-//
-// Contoh:
-//
-//	type PathParams struct {
-//	    ID   int    `param:"id"`
-//	    Slug string `param:"slug"`
-//	}
 func (c *Ctx) BindParams(v any) error {
 	rv, err := structElem(v)
 	if err != nil {
 		return fmt.Errorf("gosip: bind params: %w", err)
 	}
-	rt := rv.Type()
-	for i := range rt.NumField() {
-		field := rt.Field(i)
-		if !field.IsExported() {
-			continue
-		}
-		name, _, _ := strings.Cut(field.Tag.Get("param"), ",")
-		if name == "" || name == "-" {
-			continue
-		}
-		val := c.Request.PathValue(name)
+	info := getStructInfo(rv.Type())
+	
+	for _, f := range info.ParamFields {
+		val := c.Request.PathValue(f.Name)
 		if val == "" {
 			continue
 		}
-		if err := setField(rv.Field(i), field.Type, []string{val}); err != nil {
-			return fmt.Errorf("gosip: bind params: field %s: %w", field.Name, err)
-		}
-	}
-	return nil
-}
-
-// decodeValues mendekode url.Values ke dalam struct menggunakan struct tag yang ditentukan.
-func decodeValues(vals map[string][]string, v any, tag string) error {
-	rv, err := structElem(v)
-	if err != nil {
-		return err
-	}
-	rt := rv.Type()
-	for i := range rt.NumField() {
-		field := rt.Field(i)
-		if !field.IsExported() {
-			continue
-		}
-		name, _, _ := strings.Cut(field.Tag.Get(tag), ",")
-		if name == "" || name == "-" {
-			continue
-		}
-		values, ok := vals[name]
-		if !ok || len(values) == 0 {
-			continue
-		}
-		if err := setField(rv.Field(i), field.Type, values); err != nil {
-			return fmt.Errorf("field %s: %w", field.Name, err)
+		if err := setField(rv.Field(f.Idx), f.Type, []string{val}); err != nil {
+			return fmt.Errorf("gosip: bind params: field %s: %w", rv.Type().Field(f.Idx).Name, err)
 		}
 	}
 	return nil
