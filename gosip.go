@@ -34,9 +34,13 @@ var logo = [...]string{
 	"  ██████      ██████    ████████    ██████████  ██        ",
 }
 
+// HandlerFunc ini blueprint buat semua fungsi handler dan middleware di gosip.
 type HandlerFunc func(*Ctx) error
+
+// ErrorHandlerFunc ini blueprint buat fungsi yang nanganin error kalau ada panic atau error dari handler.
 type ErrorHandlerFunc func(error, *Ctx)
 
+// Gosip ini inti dari routernya. Semua settingan, routing, dan middleware disimpen di sini.
 type Gosip struct {
 	mux         *http.ServeMux
 	srv         atomic.Pointer[http.Server]
@@ -54,6 +58,7 @@ type config struct {
 	proxyHeader      string
 }
 
+// New ngebikin instance Gosip baru. Ibaratnya bikin server fresh dari oven.
 func New() *Gosip {
 	cfg := &config{
 		notFound:         defaultNotFound,
@@ -76,10 +81,13 @@ func New() *Gosip {
 	return g
 }
 
+// Use dipakai buat masang middleware. Middleware bakal dieksekusi urut dari yang pertama dipasang.
 func (g *Gosip) Use(middleware ...HandlerFunc) {
 	g.middlewares = append(g.middlewares, middleware...)
 }
 
+// Group ngebikinin sub-router dengan prefix tertentu.
+// Cocok banget buat misahin route API, misalnya g.Group("/api/v1").
 func (g *Gosip) Group(prefix string) *Gosip {
 	return &Gosip{
 		mux:         g.mux,
@@ -89,30 +97,37 @@ func (g *Gosip) Group(prefix string) *Gosip {
 	}
 }
 
+// Get buat daftarin route HTTP GET.
 func (g *Gosip) Get(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodGet, pattern, handlers...)
 }
 
+// Post buat daftarin route HTTP POST.
 func (g *Gosip) Post(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodPost, pattern, handlers...)
 }
 
+// Put buat daftarin route HTTP PUT.
 func (g *Gosip) Put(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodPut, pattern, handlers...)
 }
 
+// Patch buat daftarin route HTTP PATCH.
 func (g *Gosip) Patch(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodPatch, pattern, handlers...)
 }
 
+// Delete buat daftarin route HTTP DELETE.
 func (g *Gosip) Delete(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodDelete, pattern, handlers...)
 }
 
+// Options buat daftarin route HTTP OPTIONS.
 func (g *Gosip) Options(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodOptions, pattern, handlers...)
 }
 
+// Head buat daftarin route HTTP HEAD.
 func (g *Gosip) Head(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodHead, pattern, handlers...)
 }
@@ -167,10 +182,17 @@ func (g *Gosip) handleError(err error, c *Ctx) {
 	g.cfg.errorHandler(err, c)
 }
 
-func (g *Gosip) SetNotFoundHandler(h HandlerFunc)         { g.cfg.notFound = h }
-func (g *Gosip) SetMethodNotAllowedHandler(h HandlerFunc) { g.cfg.methodNotAllowed = h }
-func (g *Gosip) SetErrorHandler(h ErrorHandlerFunc)       { g.cfg.errorHandler = h }
+// SetNotFoundHandler ganti handler bawaan buat nanganin route yang nggak ketemu (404).
+func (g *Gosip) SetNotFoundHandler(h HandlerFunc) { g.cfg.notFound = h }
 
+// SetMethodNotAllowedHandler ganti handler bawaan buat nanganin method yang nggak diizinin (405).
+func (g *Gosip) SetMethodNotAllowedHandler(h HandlerFunc) { g.cfg.methodNotAllowed = h }
+
+// SetErrorHandler ganti fungsi bawaan buat nanganin error yang di-return dari handler/middleware.
+func (g *Gosip) SetErrorHandler(h ErrorHandlerFunc) { g.cfg.errorHandler = h }
+
+// SetTrustProxy nyalain fitur baca IP dari header proxy (kayak X-Forwarded-For).
+// Berguna banget kalau server kamu ada di belakang Nginx, Cloudflare, atau Load Balancer.
 func (g *Gosip) SetTrustProxy(trust bool, header ...string) {
 	g.cfg.trustProxy = trust
 	g.cfg.proxyHeader = "X-Forwarded-For"
@@ -179,10 +201,12 @@ func (g *Gosip) SetTrustProxy(trust bool, header ...string) {
 	}
 }
 
+// ServeHTTP bikin Gosip bisa dipakai sebagai http.Handler standar Go.
 func (g *Gosip) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	g.mux.ServeHTTP(w, req)
 }
 
+// Listen mulai jalanin HTTP server di address yang dikasih (contoh: ":8080").
 func (g *Gosip) Listen(addr string) error {
 	return g.ListenWithServer(&http.Server{
 		Addr:              addr,
@@ -194,6 +218,7 @@ func (g *Gosip) Listen(addr string) error {
 	})
 }
 
+// ListenWithServer jalanin server pakai custom http.Server yang kamu bikin sendiri.
 func (g *Gosip) ListenWithServer(srv *http.Server) error {
 	if srv.Handler == nil {
 		srv.Handler = g
@@ -208,16 +233,20 @@ func (g *Gosip) ListenWithServer(srv *http.Server) error {
 	return err
 }
 
+// Shutdown matiin server secara graceful (nunggu request yang lagi jalan kelar dulu).
+// Timeout bawaannya 10 detik.
 func (g *Gosip) Shutdown() error {
 	return g.ShutdownWithTimeout(10 * time.Second)
 }
 
+// ShutdownWithTimeout matiin server graceful pakai batas waktu tertentu.
 func (g *Gosip) ShutdownWithTimeout(timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	return g.ShutdownWithContext(ctx)
 }
 
+// ShutdownWithContext matiin server graceful ngikutin context yang kamu kasih.
 func (g *Gosip) ShutdownWithContext(ctx context.Context) error {
 	srv := g.srv.Load()
 	if srv == nil {

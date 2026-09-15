@@ -10,7 +10,7 @@ import (
 func TestCtx_ContextMethodPathRemoteAddr(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/hello", nil)
 	req.RemoteAddr = "192.168.1.1:1234"
-	
+
 	// Create context with custom value to test Context()
 	type key string
 	req = req.WithContext(context.WithValue(req.Context(), key("foo"), "bar"))
@@ -26,7 +26,7 @@ func TestCtx_ContextMethodPathRemoteAddr(t *testing.T) {
 	if c.RemoteAddr() != "192.168.1.1:1234" {
 		t.Errorf("RemoteAddr: want 192.168.1.1:1234, got %s", c.RemoteAddr())
 	}
-	
+
 	ctxVal := c.Context().Value(key("foo"))
 	if ctxVal != "bar" {
 		t.Errorf("Context: want bar, got %v", ctxVal)
@@ -48,12 +48,12 @@ func TestCtx_StatusAndWroteHeader(t *testing.T) {
 	if c.StatusCode() != StatusCreated {
 		t.Errorf("StatusCode after Set: want 201, got %d", c.StatusCode())
 	}
-	
+
 	c.writeHeader() // Write it once
 	if !c.WroteHeader() {
 		t.Error("WroteHeader after writeHeader: want true, got false")
 	}
-	
+
 	c.writeHeader() // Second time should be ignored and not panic/cause error
 }
 
@@ -66,7 +66,7 @@ func TestCtx_JSON(t *testing.T) {
 	if err != nil {
 		t.Errorf("JSON expected no error, got %v", err)
 	}
-	
+
 	if w.Header().Get("Content-Type") != "application/json" {
 		t.Errorf("JSON Content-Type: want application/json, got %s", w.Header().Get("Content-Type"))
 	}
@@ -91,7 +91,7 @@ func TestCtx_String(t *testing.T) {
 	if err != nil {
 		t.Errorf("String expected no error, got %v", err)
 	}
-	
+
 	if w.Header().Get("Content-Type") != "text/plain" {
 		t.Errorf("String Content-Type: want text/plain, got %s", w.Header().Get("Content-Type"))
 	}
@@ -102,11 +102,11 @@ func TestCtx_String(t *testing.T) {
 
 func TestCtx_QueryAndParams(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/?page=5", nil)
-	
+
 	// Mock PathValue (requires Go 1.22 mux routing simulation)
 	// We'll just test that it calls Request.PathValue, which is part of the request object.
 	req.SetPathValue("id", "42")
-	
+
 	c := newCtx(req)
 
 	if c.Query("page") != "5" {
@@ -115,7 +115,7 @@ func TestCtx_QueryAndParams(t *testing.T) {
 	if c.Query("not_exist") != "" {
 		t.Errorf("Query not_exist: want empty, got %s", c.Query("not_exist"))
 	}
-	
+
 	if c.Params("id") != "42" {
 		t.Errorf("Params: want 42, got %s", c.Params("id"))
 	}
@@ -125,14 +125,14 @@ func TestCtx_HeadersAndCookies(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("X-Custom", "req-val")
 	req.AddCookie(&http.Cookie{Name: "session", Value: "123"})
-	
+
 	w := httptest.NewRecorder()
 	c := &Ctx{ResponseWriter: w, Request: req}
 
 	if c.GetHeader("X-Custom") != "req-val" {
 		t.Errorf("GetHeader: want req-val, got %s", c.GetHeader("X-Custom"))
 	}
-	
+
 	c.SetHeader("X-Res", "res-val")
 	if w.Header().Get("X-Res") != "res-val" {
 		t.Errorf("SetHeader: want res-val, got %s", w.Header().Get("X-Res"))
@@ -167,7 +167,7 @@ func TestCtx_Locals(t *testing.T) {
 	if c.Locals("user") != "dika" {
 		t.Errorf("Locals after set: want dika, got %v", c.Locals("user"))
 	}
-	
+
 	// Test setting another value
 	c.Locals("role", "admin")
 	if c.Locals("role") != "admin" {
@@ -182,9 +182,9 @@ func TestCtx_Next(t *testing.T) {
 	var calls int
 	h1 := func(ctx *Ctx) error { calls++; return ctx.Next() }
 	h2 := func(ctx *Ctx) error { calls++; return nil }
-	
+
 	c.handlers = []HandlerFunc{h1, h2}
-	
+
 	err := c.Next()
 	if err != nil {
 		t.Errorf("Next error: %v", err)
@@ -192,7 +192,7 @@ func TestCtx_Next(t *testing.T) {
 	if calls != 2 {
 		t.Errorf("Next calls: want 2, got %d", calls)
 	}
-	
+
 	// Test calling next out of bounds
 	if err := c.Next(); err != nil {
 		t.Errorf("Next out of bounds should return nil, got %v", err)
