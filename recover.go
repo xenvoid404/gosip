@@ -7,6 +7,10 @@ import (
 	"runtime/debug"
 )
 
+// Recover ini middleware penyelamat!
+// Kalau handler kamu tiba-tiba panic, middleware ini bakal nangkep panic-nya,
+// nge-log pakai slog, dan ngubah panic itu jadi error biasa biar server nggak mati.
+// Pengecualian buat http.ErrAbortHandler, dia tetep di-panic sesuai standar stdlib.
 func Recover() HandlerFunc {
 	return func(c *Ctx) (err error) {
 		defer func() {

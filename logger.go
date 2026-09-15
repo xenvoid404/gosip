@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// Logger ini middleware buat nyatet aktivitas request yang masuk.
+// Dia nyatet pakai standar log/slog, nampilin info kayak method, path, IP, status code,
+// dan durasi requestnya. Kalau ada error di handler, dia bakal nyatet log error.
 func Logger() HandlerFunc {
 	return func(c *Ctx) error {
 		start := time.Now()

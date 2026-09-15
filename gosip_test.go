@@ -71,9 +71,9 @@ func TestGosip_Group(t *testing.T) {
 
 func TestGosip_Middleware(t *testing.T) {
 	app := New()
-	
+
 	order := []string{}
-	
+
 	app.Use(func(c *Ctx) error {
 		order = append(order, "1")
 		return c.Next()
@@ -101,13 +101,13 @@ func TestGosip_Middleware(t *testing.T) {
 
 func TestGosip_ErrorHandling(t *testing.T) {
 	app := New()
-	
+
 	customErr := errors.New("something went wrong")
-	
+
 	app.Get("/error", func(c *Ctx) error {
 		return customErr
 	})
-	
+
 	app.Get("/error_after_write", func(c *Ctx) error {
 		c.String("already wrote")
 		return errors.New("late error")
@@ -134,7 +134,7 @@ func TestGosip_ErrorHandling(t *testing.T) {
 	app.SetErrorHandler(func(err error, c *Ctx) {
 		c.Status(StatusBadRequest).String("custom err: " + err.Error())
 	})
-	
+
 	req3 := httptest.NewRequest(MethodGet, "/error", nil)
 	w3 := httptest.NewRecorder()
 	app.ServeHTTP(w3, req3)
@@ -190,7 +190,7 @@ func TestGosip_NotFound_MethodNotAllowed(t *testing.T) {
 func TestGosip_TrustProxy(t *testing.T) {
 	app := New()
 	app.SetTrustProxy(true, "X-Real-IP")
-	
+
 	if !app.cfg.trustProxy {
 		t.Error("trustProxy should be true")
 	}
