@@ -7,171 +7,173 @@ import (
 	"testing"
 )
 
+func newCtx(req *http.Request) *Ctx {
+	w := httptest.NewRecorder()
+	return &Ctx{ResponseWriter: w, Request: req, index: -1}
+}
+
 func TestCtx_ContextMethodPathRemoteAddr(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/hello", nil)
+	req := httptest.NewRequest(MethodPost, "/castella", nil)
 	req.RemoteAddr = "192.168.1.1:1234"
 
-	// Create context with custom value to test Context()
+	// Buat context dengan custom value untuk tes Context()
 	type key string
-	req = req.WithContext(context.WithValue(req.Context(), key("foo"), "bar"))
+	req = req.WithContext(context.WithValue(req.Context(), key("kim"), "dahyun"))
 
 	c := newCtx(req)
 
-	if c.Method() != http.MethodPost {
-		t.Errorf("Method: want POST, got %s", c.Method())
+	if c.Method() != MethodPost {
+		t.Errorf("Method() = %s, harusnya: POST", c.Method())
 	}
-	if c.Path() != "/hello" {
-		t.Errorf("Path: want /hello, got %s", c.Path())
+	if c.Path() != "/castella" {
+		t.Errorf("Path() = %s, harusnya: /hello", c.Path())
 	}
 	if c.RemoteAddr() != "192.168.1.1:1234" {
-		t.Errorf("RemoteAddr: want 192.168.1.1:1234, got %s", c.RemoteAddr())
+		t.Errorf("RemoteAddr() = %s, harusnya: 192.168.1.1:1234", c.RemoteAddr())
 	}
 
-	ctxVal := c.Context().Value(key("foo"))
-	if ctxVal != "bar" {
-		t.Errorf("Context: want bar, got %v", ctxVal)
+	ctxVal := c.Context().Value(key("kim"))
+	if ctxVal != "dahyun" {
+		t.Errorf("Context() = %v, harusnya: bar", ctxVal)
 	}
 }
 
 func TestCtx_StatusAndWroteHeader(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(MethodGet, "/", nil)
 	c := newCtx(req)
 
 	if c.StatusCode() != StatusOK {
-		t.Errorf("StatusCode default: want 200, got %d", c.StatusCode())
+		t.Errorf("StatusCode() = %d, harusnya: 200 (default)", c.StatusCode())
 	}
 	if c.WroteHeader() {
-		t.Error("WroteHeader default: want false, got true")
+		t.Error("WroteHeader() = true, harusnya: false (default)")
 	}
 
 	c.Status(StatusCreated)
 	if c.StatusCode() != StatusCreated {
-		t.Errorf("StatusCode after Set: want 201, got %d", c.StatusCode())
+		t.Errorf("StatusCode() setelah set = %d, harusnya: 201", c.StatusCode())
 	}
 
-	c.writeHeader() // Write it once
+	c.writeHeader() // Tulis header sekali aja
 	if !c.WroteHeader() {
-		t.Error("WroteHeader after writeHeader: want true, got false")
+		t.Error("WroteHeader() setelah writeHeader = true, harusnya: false")
 	}
 
-	c.writeHeader() // Second time should be ignored and not panic/cause error
+	c.writeHeader() // Panggilan kerua harusnya dicuekin dan ngga bikin error/panic
 }
 
 func TestCtx_JSON(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	c := &Ctx{ResponseWriter: w, Request: req}
 
-	err := c.JSON(Map{"msg": "ok"})
+	err := c.JSON(Map{"kim": "dahyun"})
 	if err != nil {
-		t.Errorf("JSON expected no error, got %v", err)
+		t.Errorf("JSON() = %v, harusnya ngga error", err)
 	}
 
 	if w.Header().Get("Content-Type") != "application/json" {
-		t.Errorf("JSON Content-Type: want application/json, got %s", w.Header().Get("Content-Type"))
+		t.Errorf("JSON() Content-Type = %s, harusnya: application/json", w.Header().Get("Content-Type"))
 	}
-	if w.Body.String() != `{"msg":"ok"}` {
-		t.Errorf("JSON Body: want {\"msg\":\"ok\"}, got %s", w.Body.String())
+	if w.Body.String() != `{"kim":"dahyun"}` {
+		t.Errorf("JSON() Body = %s, harusnya: {\"msg\":\"ok\"}", w.Body.String())
 	}
 
-	// Test error marshaling (using unsupported type like channel)
+	// Tes marshal dengan tipe yang tidak didukung seperti channel
 	ch := make(chan int)
 	err = c.JSON(ch)
 	if err == nil {
-		t.Error("JSON with channel should error")
+		t.Error("JSON() dengan channel harusnya error")
 	}
 }
 
 func TestCtx_String(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	c := &Ctx{ResponseWriter: w, Request: req}
 
-	err := c.String("hello world")
+	err := c.String("castella")
 	if err != nil {
-		t.Errorf("String expected no error, got %v", err)
+		t.Errorf("String() = %v, harusnya ngga error", err)
 	}
 
 	if w.Header().Get("Content-Type") != "text/plain" {
-		t.Errorf("String Content-Type: want text/plain, got %s", w.Header().Get("Content-Type"))
+		t.Errorf("String() Content-Type = %s, harusnya: text/plain", w.Header().Get("Content-Type"))
 	}
-	if w.Body.String() != "hello world" {
-		t.Errorf("String Body: want hello world, got %s", w.Body.String())
+	if w.Body.String() != "castella" {
+		t.Errorf("String() Body = %s, harusnya: castella", w.Body.String())
 	}
 }
 
 func TestCtx_QueryAndParams(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/?page=5", nil)
-
-	// Mock PathValue (requires Go 1.22 mux routing simulation)
-	// We'll just test that it calls Request.PathValue, which is part of the request object.
+	req := httptest.NewRequest(http.MethodGet, "/search?q=castella", nil)
 	req.SetPathValue("id", "42")
 
 	c := newCtx(req)
 
-	if c.Query("page") != "5" {
-		t.Errorf("Query: want 5, got %s", c.Query("page"))
+	if c.Query("q") != "castella" {
+		t.Errorf("Query() = %s, harusnya: castella", c.Query("q"))
 	}
-	if c.Query("not_exist") != "" {
-		t.Errorf("Query not_exist: want empty, got %s", c.Query("not_exist"))
+	if c.Query("hantu") != "" {
+		t.Errorf("Query() hantu = %s, harusnya kosong", c.Query("hantu"))
 	}
 
 	if c.Params("id") != "42" {
-		t.Errorf("Params: want 42, got %s", c.Params("id"))
+		t.Errorf("Params() = %s, harusnya: 42", c.Params("id"))
 	}
 }
 
 func TestCtx_HeadersAndCookies(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Custom", "req-val")
+	req := httptest.NewRequest(MethodGet, "/", nil)
+	req.Header.Set("X-Idol", "castella")
 	req.AddCookie(&http.Cookie{Name: "session", Value: "123"})
 
 	w := httptest.NewRecorder()
 	c := &Ctx{ResponseWriter: w, Request: req}
 
-	if c.GetHeader("X-Custom") != "req-val" {
-		t.Errorf("GetHeader: want req-val, got %s", c.GetHeader("X-Custom"))
+	if c.GetHeader("X-Idol") != "castella" {
+		t.Errorf("GetHeader() = %s, harusnya: castella", c.GetHeader("X-Idol"))
 	}
 
-	c.SetHeader("X-Res", "res-val")
-	if w.Header().Get("X-Res") != "res-val" {
-		t.Errorf("SetHeader: want res-val, got %s", w.Header().Get("X-Res"))
+	c.SetHeader("X-Presiden", "mbg")
+	if w.Header().Get("X-Presiden") != "mbg" {
+		t.Errorf("SetHeader() = %s, harusnya: mbg", w.Header().Get("X-Presiden"))
 	}
 
 	cookie, err := c.GetCookie("session")
 	if err != nil || cookie.Value != "123" {
-		t.Errorf("GetCookie: want 123, got %v (err: %v)", cookie, err)
+		t.Errorf("GetCookie() = %v (err: %v), harusnya: 123", cookie, err)
 	}
 
-	_, err = c.GetCookie("not_exist")
+	_, err = c.GetCookie("hantu")
 	if err == nil {
-		t.Error("GetCookie not_exist should error")
+		t.Error("GetCookie() hantu harusnya error")
 	}
 
 	c.SetCookie(&http.Cookie{Name: "new_session", Value: "456"})
 	resCookie := w.Header().Get("Set-Cookie")
 	if resCookie != "new_session=456" {
-		t.Errorf("SetCookie: want new_session=456, got %s", resCookie)
+		t.Errorf("SetCookie() = %s, harusnya: new_session=456", resCookie)
 	}
 }
 
 func TestCtx_Locals(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(MethodGet, "/", nil)
 	c := newCtx(req)
 
 	if c.Locals("user") != nil {
-		t.Errorf("Locals default: want nil, got %v", c.Locals("user"))
+		t.Errorf("Locals() = %s, harusnya: nil", c.Locals("user"))
 	}
 
-	c.Locals("user", "dika")
-	if c.Locals("user") != "dika" {
-		t.Errorf("Locals after set: want dika, got %v", c.Locals("user"))
+	c.Locals("user", "castella")
+	if c.Locals("user") != "castella" {
+		t.Errorf("Locals() setelah set = %v, harusnya: castella", c.Locals("user"))
 	}
 
-	// Test setting another value
-	c.Locals("role", "admin")
-	if c.Locals("role") != "admin" {
-		t.Errorf("Locals multiple: want admin, got %v", c.Locals("role"))
+	// Test dengan nilai lain
+	c.Locals("role", "vocal")
+	if c.Locals("role") != "vocal" {
+		t.Errorf("Locals() timpa = %v, harusnya: vocal", c.Locals("role"))
 	}
 }
 
@@ -187,37 +189,36 @@ func TestCtx_Next(t *testing.T) {
 
 	err := c.Next()
 	if err != nil {
-		t.Errorf("Next error: %v", err)
+		t.Errorf("Next() error: %v", err)
 	}
 	if calls != 2 {
-		t.Errorf("Next calls: want 2, got %d", calls)
+		t.Errorf("Next() calls = %d, harusnya 2", calls)
 	}
 
-	// Test calling next out of bounds
 	if err := c.Next(); err != nil {
-		t.Errorf("Next out of bounds should return nil, got %v", err)
+		t.Errorf("Next() = %v, harusnya: nil", err)
 	}
 }
 
 func TestCtx_IP(t *testing.T) {
 	// 1. Tanpa proxy, IP normal dengan port
-	req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req1 := httptest.NewRequest(MethodGet, "/", nil)
 	req1.RemoteAddr = "192.168.1.5:8080"
 	c1 := &Ctx{Request: req1}
 	if c1.IP() != "192.168.1.5" {
-		t.Errorf("IP normal: want 192.168.1.5, got %s", c1.IP())
+		t.Errorf("IP() normal = %s, harusnya: 192.168.1.5", c1.IP())
 	}
 
 	// 2. Tanpa proxy, format aneh/tanpa port (akan gagal SplitHostPort)
-	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req2 := httptest.NewRequest(MethodGet, "/", nil)
 	req2.RemoteAddr = "10.0.0.1"
 	c2 := &Ctx{Request: req2}
 	if c2.IP() != "10.0.0.1" {
-		t.Errorf("IP no-port: want 10.0.0.1, got %s", c2.IP())
+		t.Errorf("IP() tanpa port = %s, harusnya: 10.0.0.1", c2.IP())
 	}
 
 	// 3. Dengan proxy diaktifkan, ada header valid
-	req3 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req3 := httptest.NewRequest(MethodGet, "/", nil)
 	req3.RemoteAddr = "127.0.0.1:9000"
 	req3.Header.Set("X-Forwarded-For", "203.0.113.1, 198.51.100.1")
 	c3 := &Ctx{
@@ -228,11 +229,11 @@ func TestCtx_IP(t *testing.T) {
 		},
 	}
 	if c3.IP() != "203.0.113.1" {
-		t.Errorf("IP proxy: want 203.0.113.1, got %s", c3.IP())
+		t.Errorf("IP() proxy = %s, harusnya: 203.0.113.1", c3.IP())
 	}
 
 	// 4. Dengan proxy diaktifkan, tapi header kosong (fallback ke RemoteAddr)
-	req4 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req4 := httptest.NewRequest(MethodGet, "/", nil)
 	req4.RemoteAddr = "127.0.0.1:9000"
 	req4.Header.Set("X-Forwarded-For", "   ")
 	c4 := &Ctx{
@@ -243,6 +244,6 @@ func TestCtx_IP(t *testing.T) {
 		},
 	}
 	if c4.IP() != "127.0.0.1" {
-		t.Errorf("IP proxy empty header: want 127.0.0.1, got %s", c4.IP())
+		t.Errorf("IP() proxy dengan header kosong = %s, harusnya: 127.0.0.1", c4.IP())
 	}
 }

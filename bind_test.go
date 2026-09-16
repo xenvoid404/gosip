@@ -8,13 +8,6 @@ import (
 	"testing"
 )
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-func newCtx(req *http.Request) *Ctx {
-	w := httptest.NewRecorder()
-	return &Ctx{ResponseWriter: w, Request: req, index: -1}
-}
-
 // ── BindJSON ─────────────────────────────────────────────────────────────────
 
 func TestBindJSON_OK(t *testing.T) {

@@ -66,7 +66,7 @@ func getStructInfo(rt reflect.Type) *structInfo {
 // Pastiin `v` itu pointer ke struct ya, dan jangan nil.
 // Nggak usah repot tutup body request, udah ditutupin otomatis kok.
 func (c *Ctx) BindJSON(v any) error {
-	defer c.Request.Body.Close()
+	defer func() { _ = c.Request.Body.Close }()
 	if err := json.NewDecoder(c.Request.Body).Decode(v); err != nil {
 		return fmt.Errorf("gosip: bind json: %w", err)
 	}
