@@ -40,10 +40,10 @@ func TestGosip_Routing(t *testing.T) {
 		app.ServeHTTP(w, req)
 
 		if w.Code != StatusOK {
-			t.Errorf("Method %s Code: want 200, got %d", m.method, w.Code)
+			t.Errorf("Method() %s Code = %d, harusnya: 200", m.method, w.Code)
 		}
 		if m.method != MethodHead && w.Body.String() != strings.ToLower(m.method) {
-			t.Errorf("Method %s Body: want %s, got %s", m.method, strings.ToLower(m.method), w.Body.String())
+			t.Errorf("Method() %s Body = %s, harusnya: %s", m.method, strings.ToLower(m.method), w.Body.String())
 		}
 	}
 }
@@ -62,10 +62,10 @@ func TestGosip_Group(t *testing.T) {
 	app.ServeHTTP(w, req)
 
 	if w.Code != StatusOK {
-		t.Errorf("Group Code: want 200, got %d", w.Code)
+		t.Errorf("Group() Code = %d, harusnya 200", w.Code)
 	}
 	if w.Body.String() != "users_v1" {
-		t.Errorf("Group Body: want users_v1, got %s", w.Body.String())
+		t.Errorf("Group() Body = %s, harusnya users_v1", w.Body.String())
 	}
 }
 
@@ -95,7 +95,7 @@ func TestGosip_Middleware(t *testing.T) {
 	app.ServeHTTP(w, req)
 
 	if strings.Join(order, "") != "123" {
-		t.Errorf("Middleware order: want 123, got %s", strings.Join(order, ""))
+		t.Errorf("Middleware order = %s, harusnya 123", strings.Join(order, ""))
 	}
 }
 
@@ -109,7 +109,7 @@ func TestGosip_ErrorHandling(t *testing.T) {
 	})
 
 	app.Get("/error_after_write", func(c *Ctx) error {
-		c.String("already wrote")
+		_ = c.String("already wrote")
 		return errors.New("late error")
 	})
 
@@ -132,7 +132,7 @@ func TestGosip_ErrorHandling(t *testing.T) {
 
 	// Test custom error handler
 	app.SetErrorHandler(func(err error, c *Ctx) {
-		c.Status(StatusBadRequest).String("custom err: " + err.Error())
+		_ = c.Status(StatusBadRequest).String("custom err: " + err.Error())
 	})
 
 	req3 := httptest.NewRequest(MethodGet, "/error", nil)
@@ -302,7 +302,7 @@ func TestGosip_Listen_And_Shutdown(t *testing.T) {
 		t.Errorf("ShutdownWithTimeout on nil server should not error, got: %v", err)
 	}
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
-	io.ReadAll(r) // Consume hijacked output
+	_, _ = io.ReadAll(r) // Consume hijacked output
 }

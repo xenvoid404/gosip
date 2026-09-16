@@ -34,10 +34,10 @@ var logo = [...]string{
 	"  ██████      ██████    ████████    ██████████  ██        ",
 }
 
-// HandlerFunc ini blueprint buat semua fungsi handler dan middleware di gosip.
+// HandlerFunc ini blueprint untuk semua fungsi handler dan middleware di gosip.
 type HandlerFunc func(*Ctx) error
 
-// ErrorHandlerFunc ini blueprint buat fungsi yang nanganin error kalau ada panic atau error dari handler.
+// ErrorHandlerFunc ini blueprint untuk fungsi yang menangani error kalau ada panic atau error dari handler.
 type ErrorHandlerFunc func(error, *Ctx)
 
 // Gosip ini inti dari routernya. Semua settingan, routing, dan middleware disimpen di sini.
@@ -58,7 +58,7 @@ type config struct {
 	proxyHeader      string
 }
 
-// New ngebikin instance Gosip baru. Ibaratnya bikin server fresh dari oven.
+// New membuat instance Gosip baru. Ibaratnya bikin server fresh dari oven.
 func New() *Gosip {
 	cfg := &config{
 		notFound:         defaultNotFound,
@@ -81,13 +81,13 @@ func New() *Gosip {
 	return g
 }
 
-// Use dipakai buat masang middleware. Middleware bakal dieksekusi urut dari yang pertama dipasang.
+// Use dipakai untuk memasang middleware. Middleware akan dieksekusi urut dari yang pertama dipasang.
 func (g *Gosip) Use(middleware ...HandlerFunc) {
 	g.middlewares = append(g.middlewares, middleware...)
 }
 
-// Group ngebikinin sub-router dengan prefix tertentu.
-// Cocok banget buat misahin route API, misalnya g.Group("/api/v1").
+// Group membuat sub-router dengan prefix tertentu.
+// Cocok untuk misahin route API, misalnya g.Group("/api/v1").
 func (g *Gosip) Group(prefix string) *Gosip {
 	return &Gosip{
 		mux:         g.mux,
@@ -97,37 +97,37 @@ func (g *Gosip) Group(prefix string) *Gosip {
 	}
 }
 
-// Get buat daftarin route HTTP GET.
+// Get untuk mendaftarkan route HTTP GET.
 func (g *Gosip) Get(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodGet, pattern, handlers...)
 }
 
-// Post buat daftarin route HTTP POST.
+// Post untuk mendaftarkan route HTTP POST.
 func (g *Gosip) Post(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodPost, pattern, handlers...)
 }
 
-// Put buat daftarin route HTTP PUT.
+// Put untuk mendaftarkan route HTTP PUT.
 func (g *Gosip) Put(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodPut, pattern, handlers...)
 }
 
-// Patch buat daftarin route HTTP PATCH.
+// Patch untuk mendaftarkan route HTTP PATCH.
 func (g *Gosip) Patch(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodPatch, pattern, handlers...)
 }
 
-// Delete buat daftarin route HTTP DELETE.
+// Delete untuk mendaftarkan route HTTP DELETE.
 func (g *Gosip) Delete(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodDelete, pattern, handlers...)
 }
 
-// Options buat daftarin route HTTP OPTIONS.
+// Options untuk mendaftarkan route HTTP OPTIONS.
 func (g *Gosip) Options(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodOptions, pattern, handlers...)
 }
 
-// Head buat daftarin route HTTP HEAD.
+// Head untuk mendaftarkan route HTTP HEAD.
 func (g *Gosip) Head(pattern string, handlers ...HandlerFunc) {
 	g.handle(MethodHead, pattern, handlers...)
 }
@@ -182,17 +182,17 @@ func (g *Gosip) handleError(err error, c *Ctx) {
 	g.cfg.errorHandler(err, c)
 }
 
-// SetNotFoundHandler ganti handler bawaan buat nanganin route yang nggak ketemu (404).
+// SetNotFoundHandler ganti handler bawaan untuk menangani route yang nggak ketemu (404).
 func (g *Gosip) SetNotFoundHandler(h HandlerFunc) { g.cfg.notFound = h }
 
-// SetMethodNotAllowedHandler ganti handler bawaan buat nanganin method yang nggak diizinin (405).
+// SetMethodNotAllowedHandler ganti handler bawaan untuk menangani method yang nggak diizinin (405).
 func (g *Gosip) SetMethodNotAllowedHandler(h HandlerFunc) { g.cfg.methodNotAllowed = h }
 
-// SetErrorHandler ganti fungsi bawaan buat nanganin error yang di-return dari handler/middleware.
+// SetErrorHandler ganti fungsi bawaan untuk menangani error yang di-return dari handler/middleware.
 func (g *Gosip) SetErrorHandler(h ErrorHandlerFunc) { g.cfg.errorHandler = h }
 
-// SetTrustProxy nyalain fitur baca IP dari header proxy (kayak X-Forwarded-For).
-// Berguna banget kalau server kamu ada di belakang Nginx, Cloudflare, atau Load Balancer.
+// SetTrustProxy fitur baca IP dari header proxy (kayak X-Forwarded-For).
+// Berguna kalo server kamu ada di belakang Nginx, Cloudflare, atau Load Balancer.
 func (g *Gosip) SetTrustProxy(trust bool, header ...string) {
 	g.cfg.trustProxy = trust
 	g.cfg.proxyHeader = "X-Forwarded-For"

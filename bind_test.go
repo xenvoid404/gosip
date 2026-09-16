@@ -257,9 +257,8 @@ func TestBindQuery_AllTypes_AndErrors(t *testing.T) {
 		FloatField   float32   `query:"f"`
 		BoolField    bool      `query:"b"`
 		ComplexField complex64 `query:"c"`
-		unexported   int
-		PointerErr   *int  `query:"pe"`
-		SliceErr     []int `query:"se"`
+		PointerErr   *int      `query:"pe"`
+		SliceErr     []int     `query:"se"`
 	}
 
 	// Test valid all types
@@ -321,8 +320,7 @@ func TestBind_StructElem_NonStructPtr(t *testing.T) {
 
 func TestBindParams_EmptyValAndUnexported(t *testing.T) {
 	type Params struct {
-		unexported int
-		ID         int `param:"id"`
+		ID int `param:"id"`
 	}
 
 	mux := http.NewServeMux()

@@ -122,7 +122,7 @@ func (c *Ctx) BindParams(v any) error {
 // dan mengembalikan reflect.Value dari elem-nya.
 func structElem(v any) (reflect.Value, error) {
 	rv := reflect.ValueOf(v)
-	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return reflect.Value{}, errNotStructPtr
 	}
 	rv = rv.Elem()
@@ -136,7 +136,7 @@ func structElem(v any) (reflect.Value, error) {
 // Mendukung: tipe primitif, pointer ke primitif, dan slice dari primitif.
 func setField(fv reflect.Value, ft reflect.Type, values []string) error {
 	// Pointer: alokasikan dan isi elem-nya
-	if ft.Kind() == reflect.Ptr {
+	if ft.Kind() == reflect.Pointer {
 		ptr := reflect.New(ft.Elem())
 		if err := setField(ptr.Elem(), ft.Elem(), values); err != nil {
 			return err
